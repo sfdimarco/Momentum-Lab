@@ -9,7 +9,7 @@ import * as Blockly from 'blockly';
 import SynestheticLayer from './components/SynestheticLayer';
 import SpatialEye from './components/SpatialEye';
 import { syncFromGameState, resetSpatialState } from './lib/spatial-state';
-import { babyAgent, BabyAgentEvent } from './geoai/baby_agent';
+import { babyAgent, baby1Agent, BabyAgentEvent } from './geoai/baby_agent';
 import type { SpatialPattern } from './geoai/parser';
 
 export default function App() {
@@ -44,6 +44,23 @@ export default function App() {
     value: number;
     ts: number;
   } | null>(null);
+
+  // ── baby_1 state ──────────────────────────────────────────────────────────
+  const [baby1Mode, setBaby1Mode] = useState(false);
+  const [wild1Mode, setWild1Mode] = useState(false);
+  const [baby1BrainSnap, setBaby1BrainSnap] = useState({
+    visualResolution: 2,
+    currentFocus: null as { depth: number; path: string[] } | null,
+    frustration: 0,
+    energy: 1.0,
+    patternCache: [] as SpatialPattern[],
+  });
+  const [last1Reward, setLast1Reward] = useState<{
+    quadrant: { depth: number; path: string[] };
+    value: number;
+    ts: number;
+  } | null>(null);
+
   const canvasContainerRef = useRef<HTMLDivElement>(null);
 
   const downloadProject = () => {
@@ -156,7 +173,7 @@ export default function App() {
     };
   }, [babyMode]);
 
-  // ── wild mode lifecycle ───────────────────────────────────────────────────
+  // ── wild mode lifecycle (baby_0) ─────────────────────────────────────────
   useEffect(() => {
     if (!babyMode) return; // baby must be awake first
     if (wildMode) {
@@ -165,6 +182,54 @@ export default function App() {
       babyAgent.disableWildMode();
     }
   }, [wildMode, babyMode]);
+
+  // ── baby_1 lifecycle ──────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!baby1Mode) {
+      baby1Agent.stop();
+      return;
+    }
+    const findCanvas = () => {
+      if (!canvasContainerRef.current) return;
+      const c = canvasContainerRef.current.querySelector('canvas');
+      if (c) baby1Agent.setCanvas(c);
+    };
+    findCanvas();
+    const t = setTimeout(findCanvas, 500);
+
+    const unsub = baby1Agent.on((event: BabyAgentEvent) => {
+      const b = baby1Agent.getBrain();
+      if (event.type === 'reward_fired') {
+        setLast1Reward({ quadrant: event.quadrant as any, value: event.value, ts: Date.now() });
+      }
+      setBaby1BrainSnap({
+        visualResolution: b.visualResolution,
+        currentFocus: b.currentFocus as any,
+        frustration: b.frustration,
+        energy: b.energy,
+        patternCache: [...b.patternCache],
+      });
+    });
+
+    baby1Agent.start();
+    console.log('[baby_1] 🧬 Divergent explorer awakened. Watching Momentum Lab...');
+
+    return () => {
+      clearTimeout(t);
+      unsub();
+      baby1Agent.stop();
+    };
+  }, [baby1Mode]);
+
+  // ── wild mode lifecycle (baby_1) ─────────────────────────────────────────
+  useEffect(() => {
+    if (!baby1Mode) return;
+    if (wild1Mode) {
+      baby1Agent.enableWildMode();
+    } else {
+      baby1Agent.disableWildMode();
+    }
+  }, [wild1Mode, baby1Mode]);
 
   useEffect(() => {
     let interval: any;
@@ -813,6 +878,34 @@ export default function App() {
                   <Zap size={14} />
                   Wild
                 </button>
+                {/* ── baby_1 controls ──────────────────────────────────── */}
+                <button
+                  onClick={() => setBaby1Mode(!baby1Mode)}
+                  title="baby_1 — The Divergent: wider net, faster explorer, minReward=0.1"
+                  className={`p-2 rounded-lg transition-all flex items-center gap-2 text-sm font-medium ${
+                    baby1Mode
+                      ? 'bg-pink-100 text-pink-700 ring-2 ring-pink-400'
+                      : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                  }`}
+                >
+                  <span style={{ fontSize: 16 }}>🧬</span>
+                  baby_1
+                </button>
+                <button
+                  onClick={() => {
+                    if (!baby1Mode) setBaby1Mode(true);
+                    setWild1Mode(prev => !prev);
+                  }}
+                  title="⚡ WILD — unleash baby_1. Grows every pattern in wild mode."
+                  className={`p-2 rounded-lg transition-all flex items-center gap-2 text-sm font-bold ${
+                    wild1Mode
+                      ? 'bg-fuchsia-100 text-fuchsia-700 ring-2 ring-fuchsia-400 animate-pulse'
+                      : 'bg-slate-200 text-slate-500 hover:bg-fuchsia-50 hover:text-fuchsia-600'
+                  }`}
+                >
+                  <Zap size={14} />
+                  Wild₁
+                </button>
               </div>
             </div>
             
@@ -847,6 +940,15 @@ export default function App() {
                     lastReward={lastReward && (Date.now() - lastReward.ts < 1500) ? lastReward : null}
                     quadrantEntropy={new Map()}
                   />
+                  {/* baby_1 overlay — same canvas, different gaze */}
+                  <SpatialEye
+                    visible={baby1Mode}
+                    width={400}
+                    height={400}
+                    brain={baby1BrainSnap}
+                    lastReward={last1Reward && (Date.now() - last1Reward.ts < 1500) ? last1Reward : null}
+                    quadrantEntropy={new Map()}
+                  />
                 </div>
 
                 {/* ── baby_0 live telemetry strip ─────────────────────── */}
@@ -856,30 +958,23 @@ export default function App() {
                       ? 'bg-yellow-50 border border-yellow-200 text-yellow-800'
                       : 'bg-cyan-50 border border-cyan-200 text-cyan-800'
                   }`}>
-                    {/* Mode badge */}
                     <span className={`font-bold px-2 py-0.5 rounded text-white text-[10px] tracking-widest ${wildMode ? 'bg-yellow-500 animate-pulse' : 'bg-cyan-500'}`}>
-                      {wildMode ? '⚡ WILD' : '👁 WATCHING'}
+                      🧠 {wildMode ? '⚡ WILD' : '👁 WATCHING'}
                     </span>
-
-                    {/* Resolution — visualResolution is quadtree DEPTH, so grid = 2^depth */}
                     {(() => {
                       const gridSize = Math.pow(2, babyBrainSnap.visualResolution);
                       return (
-                        <span title="Spatial resolution — how many regions baby_0 can distinguish">
+                        <span title="Spatial resolution">
                           🔬 <strong>{gridSize}×{gridSize}</strong>
                           <span className="ml-1 text-[10px] opacity-60">({(gridSize * gridSize).toLocaleString()} regions)</span>
                         </span>
                       );
                     })()}
-
-                    {/* Pattern count */}
-                    <span title="Total unique spatial patterns cached in memory">
+                    <span title="Patterns cached">
                       ✨ <strong>{babyBrainSnap.patternCache.length}</strong>
                       <span className="ml-1 text-[10px] opacity-60">patterns</span>
                     </span>
-
-                    {/* Energy bar */}
-                    <span className="flex items-center gap-1" title="Energy — depletes while exploring, recovers at rest">
+                    <span className="flex items-center gap-1" title="Energy">
                       ⚡
                       <span className="inline-block w-16 h-2 rounded-full bg-slate-200 overflow-hidden">
                         <span
@@ -889,26 +984,53 @@ export default function App() {
                       </span>
                       <span className="text-[10px] opacity-60">{Math.round(babyBrainSnap.energy * 100)}%</span>
                     </span>
-
-                    {/* Frustration */}
                     {babyBrainSnap.frustration > 0 && (
-                      <span title="Frustration — rises when no reward for a while">
-                        😤 <strong>{babyBrainSnap.frustration}</strong>
-                      </span>
+                      <span title="Frustration">😤 <strong>{babyBrainSnap.frustration}</strong></span>
                     )}
-
-                    {/* Current focus path */}
                     {babyBrainSnap.currentFocus && (
-                      <span className="opacity-70" title="Current gaze — quadtree path baby_0 is sampling right now">
-                        📍 [{babyBrainSnap.currentFocus.path.join('→')}]
-                      </span>
+                      <span className="opacity-70">📍 [{babyBrainSnap.currentFocus.path.join('→')}]</span>
                     )}
+                  </div>
+                )}
 
-                    {/* Last cached pattern */}
-                    {babyBrainSnap.patternCache.length > 0 && (
-                      <span className="opacity-70" title="Most recently memorized pattern">
-                        💾 [{babyBrainSnap.patternCache[babyBrainSnap.patternCache.length - 1]?.path?.join('→') ?? '...'}]
+                {/* ── baby_1 live telemetry strip ─────────────────────── */}
+                {baby1Mode && (
+                  <div className={`mt-1 px-3 py-2 rounded-lg font-mono text-xs flex flex-wrap items-center gap-x-4 gap-y-1 ${
+                    wild1Mode
+                      ? 'bg-fuchsia-50 border border-fuchsia-200 text-fuchsia-800'
+                      : 'bg-pink-50 border border-pink-200 text-pink-800'
+                  }`}>
+                    <span className={`font-bold px-2 py-0.5 rounded text-white text-[10px] tracking-widest ${wild1Mode ? 'bg-fuchsia-500 animate-pulse' : 'bg-pink-500'}`}>
+                      🧬 {wild1Mode ? '⚡ WILD' : '👁 WATCHING'}
+                    </span>
+                    {(() => {
+                      const gridSize = Math.pow(2, baby1BrainSnap.visualResolution);
+                      return (
+                        <span title="Spatial resolution">
+                          🔬 <strong>{gridSize}×{gridSize}</strong>
+                          <span className="ml-1 text-[10px] opacity-60">({(gridSize * gridSize).toLocaleString()} regions)</span>
+                        </span>
+                      );
+                    })()}
+                    <span title="Patterns cached — baby_1 caches TIER_3+ so count grows faster">
+                      ✨ <strong>{baby1BrainSnap.patternCache.length}</strong>
+                      <span className="ml-1 text-[10px] opacity-60">patterns</span>
+                    </span>
+                    <span className="flex items-center gap-1" title="Energy">
+                      ⚡
+                      <span className="inline-block w-16 h-2 rounded-full bg-slate-200 overflow-hidden">
+                        <span
+                          className={`block h-full rounded-full transition-all ${baby1BrainSnap.energy > 0.5 ? 'bg-green-400' : baby1BrainSnap.energy > 0.2 ? 'bg-yellow-400' : 'bg-red-400'}`}
+                          style={{ width: `${Math.round(baby1BrainSnap.energy * 100)}%` }}
+                        />
                       </span>
+                      <span className="text-[10px] opacity-60">{Math.round(baby1BrainSnap.energy * 100)}%</span>
+                    </span>
+                    {baby1BrainSnap.frustration > 0 && (
+                      <span title="Frustration — baby_1 hits this fast (3 ticks)">😤 <strong>{baby1BrainSnap.frustration}</strong></span>
+                    )}
+                    {baby1BrainSnap.currentFocus && (
+                      <span className="opacity-70">📍 [{baby1BrainSnap.currentFocus.path.join('→')}]</span>
                     )}
                   </div>
                 )}

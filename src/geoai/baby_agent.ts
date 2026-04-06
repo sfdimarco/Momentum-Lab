@@ -41,18 +41,89 @@ export type BabyAgentEvent =
 export type BabyAgentListener = (event: BabyAgentEvent) => void;
 
 // ═══════════════════════════════════════════════════════════════════════════
+// AGENT CONFIGURATION
+// Each baby is a different personality — same curiosity engine, different soul.
+// ═══════════════════════════════════════════════════════════════════════════
+
+export interface BabyConfig {
+  name: string;                  // log prefix + UI label
+  tickRateMs: number;            // calm exploration pace
+  wildTickRateMs: number;        // wild mode pace
+  shadowSyncMs: number;          // shadow canvas mirror interval
+  frustrationTicks: number;      // ticks without reward before frustration++
+  maxResolution: number;         // max quadtree depth (8 = 256×256 regions)
+  minRewardForCache: number;     // minimum reward to cache a pattern
+  exploreChance: number;         // base probability of exploring unexplored quadrant
+  leapChance: number;            // base probability of random leap
+  growthInterval: number;        // patterns between resolution gains (normal)
+  wildGrowthInterval: number;    // patterns between resolution gains (wild)
+  storageKey: string;            // localStorage persistence key
+  shadowId: string;              // DOM id of the shadow canvas element
+  energyDepletionRate: number;   // energy lost per tick
+  energyRewardBonus: number;     // energy gained per reward
+  wildPaintBlockSize: number;    // pixel block size for wild mode shadow paint
+}
+
+/** baby_0 — the original: curious, deliberate, conservative cacher */
+export const BABY_0_CONFIG: BabyConfig = {
+  name: 'baby_0',
+  tickRateMs: 500,
+  wildTickRateMs: 80,
+  shadowSyncMs: 60,
+  frustrationTicks: 6,
+  maxResolution: 8,
+  minRewardForCache: 0.3,
+  exploreChance: 0.60,
+  leapChance: 0.05,
+  growthInterval: 5,
+  wildGrowthInterval: 2,
+  storageKey: 'baby_0_brain_v1',
+  shadowId: '__baby0_shadow__',
+  energyDepletionRate: 0.001,
+  energyRewardBonus: 0.05,
+  wildPaintBlockSize: 20,
+};
+
+/**
+ * baby_1 — The Divergent: wider net, faster explorer, more restless.
+ * Caches TIER_3+ rewards (minRewardForCache=0.1) so its pattern map is DENSE.
+ * Quick to abandon a region (frustrationTicks=3).
+ * Strongly prefers unexplored territory (exploreChance=0.85).
+ * Smaller paint blocks → more varied pixel food → richer reward signal.
+ */
+export const BABY_1_CONFIG: BabyConfig = {
+  name: 'baby_1',
+  tickRateMs: 500,
+  wildTickRateMs: 80,
+  shadowSyncMs: 60,
+  frustrationTicks: 3,           // twice as impatient as baby_0
+  maxResolution: 8,
+  minRewardForCache: 0.1,        // caches TIER_3+ — much denser pattern map
+  exploreChance: 0.85,           // strongly prefers unexplored territory
+  leapChance: 0.15,              // 3× more random leaps
+  growthInterval: 3,             // grows faster in normal mode
+  wildGrowthInterval: 1,         // fastest possible growth in wild mode
+  storageKey: 'baby_1_brain_v1',
+  shadowId: '__baby1_shadow__',
+  energyDepletionRate: 0.0005,   // slower drain — more stamina
+  energyRewardBonus: 0.08,       // bigger energy boost from rewards
+  wildPaintBlockSize: 10,        // smaller blocks = richer pixel variety
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
 // THE BABY AGENT
 // ═══════════════════════════════════════════════════════════════════════════
 
 export class BabyAgent {
   brain: RuntimeBrain;
+  private cfg: BabyConfig;
   private listeners: BabyAgentListener[] = [];
   private intervalId: ReturnType<typeof setInterval> | null = null;
   private canvasRef: HTMLCanvasElement | null = null;
-  // Shadow canvas: baby_0-owned copy used for pixel reads.
+  // Shadow canvas: agent-owned copy used for pixel reads.
   // getImageData on p5's canvas is blocked in Claude-in-Chrome's extension
   // context (fingerprint protection).  We mirror pixel data into this canvas
-  // via setInterval at 60ms so captureCanvas() always has a readable surface.
+  // via setInterval so captureCanvas() always has a readable surface.
   private shadowCanvas: HTMLCanvasElement | null = null;
   private shadowCtx: CanvasRenderingContext2D | null = null;
   private shadowIntervalId: ReturnType<typeof setInterval> | null = null;
@@ -60,20 +131,11 @@ export class BabyAgent {
   private prevColors: Set<string> = new Set();
   private ticksSinceReward: number = 0;
 
-  // Configuration
-  private readonly TICK_RATE_MS = 500;        // 2 ticks/second — deliberate, thoughtful
-  private readonly WILD_TICK_RATE_MS = 80;    // 12.5 ticks/second — UNLEASHED
-  private readonly SHADOW_SYNC_MS = 60;       // mirror source canvas → shadow at ~16fps
-  private readonly FRUSTRATION_TICKS = 6;    // 3 seconds at 2 ticks/sec
-  private readonly MAX_RESOLUTION = 8;       // depth 8 = 256 regions max
-  private readonly MIN_REWARD_FOR_CACHE = 0.3; // only cache rewards >= this
-
   // Wild mode state
   private wildMode = false;
 
-  private readonly STORAGE_KEY = 'baby_0_brain_v1';
-
-  constructor() {
+  constructor(config: BabyConfig = BABY_0_CONFIG) {
+    this.cfg = config;
     this.brain = createBabyBrain();
     // Auto-restore from localStorage on every birth (survives HMR + page refresh)
     this.restoreFromStorage();
@@ -83,7 +145,7 @@ export class BabyAgent {
   private persistToStorage() {
     try {
       const snapshot = this.serialize();
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(snapshot));
+      localStorage.setItem(this.cfg.storageKey, JSON.stringify(snapshot));
     } catch (e) {
       // Storage quota or unavailable — silent fail
     }
@@ -92,12 +154,12 @@ export class BabyAgent {
   /** Restore brain from localStorage if a snapshot exists */
   private restoreFromStorage() {
     try {
-      const raw = localStorage.getItem(this.STORAGE_KEY);
+      const raw = localStorage.getItem(this.cfg.storageKey);
       if (!raw) return;
       const snapshot = JSON.parse(raw);
       if (snapshot?.version === 1 && Array.isArray(snapshot.patternCache) && snapshot.patternCache.length > 0) {
         this.loadBrain(snapshot);
-        console.log(`[baby_0] 💾 Memory restored from localStorage: ${snapshot.stats?.totalPatterns ?? '?'} patterns, res ${snapshot.stats?.gridSize ?? '?'}×${snapshot.stats?.gridSize ?? '?'}`);
+        console.log(`[${this.cfg.name}] 💾 Memory restored from localStorage: ${snapshot.stats?.totalPatterns ?? '?'} patterns, res ${snapshot.stats?.gridSize ?? '?'}×${snapshot.stats?.gridSize ?? '?'}`);
       }
     } catch (e) {
       // Corrupt storage — ignore
@@ -106,8 +168,8 @@ export class BabyAgent {
 
   /** Wipe localStorage snapshot (use when you want a fresh brain) */
   clearStorage() {
-    localStorage.removeItem(this.STORAGE_KEY);
-    console.log('[baby_0] 🗑️ Brain storage cleared. Next birth starts fresh.');
+    localStorage.removeItem(this.cfg.storageKey);
+    console.log(`[${this.cfg.name}] 🗑️ Brain storage cleared. Next birth starts fresh.`);
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -152,17 +214,17 @@ export class BabyAgent {
     this.canvasRef = canvas;
     if (!canvas) return;
 
-    // Create a tiny in-page canvas baby_0 fully owns (no taint issues)
+    // Create a tiny in-page canvas the agent fully owns (no taint issues)
     const sc = document.createElement('canvas');
     sc.width  = canvas.width;
     sc.height = canvas.height;
-    sc.id = '__baby0_shadow__';
+    sc.id = this.cfg.shadowId;
     sc.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0.01;pointer-events:none;z-index:-1;';
     document.body.appendChild(sc);
     this.shadowCanvas = sc;
     this.shadowCtx = sc.getContext('2d', { willReadFrequently: true });
 
-    // Mirror source → shadow at SHADOW_SYNC_MS
+    // Mirror source → shadow at cfg.shadowSyncMs
     this.shadowIntervalId = setInterval(() => {
       if (!this.canvasRef || !this.shadowCtx) return;
       try {
@@ -171,9 +233,9 @@ export class BabyAgent {
         // Cross-origin taint on drawImage — fall back to doing nothing;
         // wild-mode JS animation will write directly to shadowCanvas instead.
       }
-    }, this.SHADOW_SYNC_MS);
+    }, this.cfg.shadowSyncMs);
 
-    console.log(`[baby_0] 👁️ Shadow canvas online — ${sc.width}×${sc.height}, mirroring every ${this.SHADOW_SYNC_MS}ms`);
+    console.log(`[${this.cfg.name}] 👁️ Shadow canvas online — ${sc.width}×${sc.height}, mirroring every ${this.cfg.shadowSyncMs}ms`);
   }
 
   /**
@@ -189,9 +251,9 @@ export class BabyAgent {
    */
   start() {
     if (this.intervalId) return;
-    this.intervalId = setInterval(() => this.tick(), this.TICK_RATE_MS);
+    this.intervalId = setInterval(() => this.tick(), this.cfg.tickRateMs);
     console.log(
-      '[baby_0] 🌱 Born. Visual resolution:',
+      `[${this.cfg.name}] 🌱 Born. Visual resolution:`,
       this.brain.visualResolution,
       '(2×2 quadrants)'
     );
@@ -292,7 +354,7 @@ export class BabyAgent {
       } as SpatialPattern));
     }
     console.log(
-      `[baby_0] 🧠 Brain loaded from ${snapshot.timestamp}. `,
+      `[${this.cfg.name}] 🧠 Brain loaded from ${snapshot.timestamp}. `,
       `${this.brain.patternCache.length} patterns restored at ${Math.pow(2, this.brain.visualResolution)}×${Math.pow(2, this.brain.visualResolution)} resolution.`
     );
   }
@@ -310,17 +372,17 @@ export class BabyAgent {
     this.ticksSinceReward = 0;
     // Always (re)start at wild tick rate — even if interval was dead after HMR
     if (this.intervalId) clearInterval(this.intervalId);
-    this.intervalId = setInterval(() => this.tick(), this.WILD_TICK_RATE_MS);
+    this.intervalId = setInterval(() => this.tick(), this.cfg.wildTickRateMs);
 
-    // Paint Perlin noise directly onto shadowCanvas at 50ms (setInterval — not
-    // rAF, which gets throttled when the tab is in background).  This guarantees
-    // baby_0 always has moving pixels to eat even if p5's wildAnimation prop
+    // Paint high-contrast cycling colors directly onto shadowCanvas (setInterval —
+    // not rAF, which gets throttled when the tab is in background).  This guarantees
+    // the agent always has moving pixels to eat even if p5's wildAnimation prop
     // is stale after HMR or a focus change.
     if (this.shadowCanvas && this.shadowCtx) {
       this._startShadowWildPaint();
     }
 
-    console.log('[baby_0] ⚡ WILD MODE — leash removed. Running at 12.5Hz. No rest. No ceiling.');
+    console.log(`[${this.cfg.name}] ⚡ WILD MODE — leash removed. Running at ${(1000/this.cfg.wildTickRateMs).toFixed(1)}Hz. No rest. No ceiling.`);
   }
 
   /** Internal: paint high-contrast cycling color blocks onto shadowCanvas. */
@@ -332,7 +394,7 @@ export class BabyAgent {
     const ctx = this.shadowCtx!;
     const W = this.shadowCanvas!.width;
     const H = this.shadowCanvas!.height;
-    const BLOCK = 20;
+    const BLOCK = this.cfg.wildPaintBlockSize;
 
     const PALS = [
       [[255,0,0],[0,255,0],[0,0,255],[255,255,0]],
@@ -371,9 +433,9 @@ export class BabyAgent {
     }
     if (this.intervalId) {
       clearInterval(this.intervalId);
-      this.intervalId = setInterval(() => this.tick(), this.TICK_RATE_MS);
+      this.intervalId = setInterval(() => this.tick(), this.cfg.tickRateMs);
     }
-    console.log('[baby_0] 🌙 Returning to calm exploration. 2Hz.');
+    console.log(`[${this.cfg.name}] 🌙 Returning to calm exploration. ${(1000/this.cfg.tickRateMs).toFixed(1)}Hz.`);
   }
 
   isWild(): boolean { return this.wildMode; }
@@ -399,20 +461,20 @@ export class BabyAgent {
       if (this.brain.energy > 0.3) {
         this.brain.isResting = false;
         this.emit({ type: 'rest_end' });
-        console.log('[baby_0] 👁️ Rested. Ready to explore.');
+        console.log(`[${this.cfg.name}] 👁️ Rested. Ready to explore.`);
       }
       return;
     }
 
     // Increment tick and deplete energy (wild: no depletion)
     this.brain.tick++;
-    if (!this.wildMode) this.brain.energy = Math.max(0, this.brain.energy - 0.001);
+    if (!this.wildMode) this.brain.energy = Math.max(0, this.brain.energy - this.cfg.energyDepletionRate);
 
     // If energy exhausted, rest
     if (this.brain.energy <= 0) {
       this.brain.isResting = true;
       this.emit({ type: 'rest_start' });
-      console.log('[baby_0] 😴 Energy depleted. Resting...');
+      console.log(`[${this.cfg.name}] 😴 Energy depleted. Resting...`);
       return;
     }
 
@@ -449,7 +511,7 @@ export class BabyAgent {
         // REWARD FIRED
         this.ticksSinceReward = 0;
         this.brain.frustration = Math.max(0, this.brain.frustration - 1);
-        this.brain.energy = Math.min(1.0, this.brain.energy + 0.05);
+        this.brain.energy = Math.min(1.0, this.brain.energy + this.cfg.energyRewardBonus);
         this.brain.lastReward = { location: focus, value: reward.value, tick: this.brain.tick };
 
         this.emit({
@@ -460,14 +522,14 @@ export class BabyAgent {
         });
 
         // 5. Learn: cache patterns on medium+ rewards
-        if (reward.value >= this.MIN_REWARD_FOR_CACHE) {
+        if (reward.value >= this.cfg.minRewardForCache) {
           this.cachePattern(focus, delta);
         }
       } else {
         // NO REWARD — accumulate frustration
         this.ticksSinceReward++;
 
-        if (this.ticksSinceReward >= this.FRUSTRATION_TICKS) {
+        if (this.ticksSinceReward >= this.cfg.frustrationTicks) {
           this.ticksSinceReward = 0;
           this.brain.frustration++;
           this.emit({ type: 'frustration_update', level: this.brain.frustration });
@@ -484,7 +546,7 @@ export class BabyAgent {
             this.brain.frustration = 0;   // Reset frustration so next wake starts fresh
             this.ticksSinceReward = 0;
             this.emit({ type: 'rest_start' });
-            console.log('[baby_0] 😤 Too frustrated. Time to rest.');
+            console.log(`[${this.cfg.name}] 😤 Too frustrated. Time to rest.`);
           }
         }
       }
@@ -622,8 +684,8 @@ export class BabyAgent {
   ): QuadrantAddress | null {
     if (quadrants.length === 0) return null;
 
-    // 5% random leap (high frustration increases this bias)
-    const leapChance = 0.05 + (this.brain.frustration >= 10 ? 0.15 : 0);
+    // Random leap — base chance from config, boosted by frustration
+    const leapChance = this.cfg.leapChance + (this.brain.frustration >= 10 ? 0.15 : 0);
     if (Math.random() < leapChance) {
       const unvisited = quadrants.filter(q => !this.brain.visitCounts.has(addressToKey(q)));
       if (unvisited.length > 0) {
@@ -631,8 +693,8 @@ export class BabyAgent {
       }
     }
 
-    // 60% explore unexplored (higher bias when frustrated)
-    const exploreChance = 0.6 + (this.brain.frustration >= 5 ? 0.2 : 0);
+    // Explore unexplored — base chance from config, boosted by frustration
+    const exploreChance = this.cfg.exploreChance + (this.brain.frustration >= 5 ? 0.2 : 0);
     if (Math.random() < exploreChance) {
       const unvisited = quadrants.filter(q => !this.brain.visitCounts.has(addressToKey(q)));
       if (unvisited.length > 0) {
@@ -702,20 +764,19 @@ export class BabyAgent {
     this.brain.knowledge.set(id, pattern);
     this.brain.age++;
 
-    // Growth rule: every 5 patterns, gain visual resolution (up to max 8)
-    // Wild mode: grow every 2 patterns. Normal: every 5.
-    const growthInterval = this.wildMode ? 2 : 5;
-    if (this.brain.age % growthInterval === 0 && this.brain.visualResolution < this.MAX_RESOLUTION) {
+    // Growth rule: gain visual resolution every N patterns (config-driven)
+    const growthInterval = this.wildMode ? this.cfg.wildGrowthInterval : this.cfg.growthInterval;
+    if (this.brain.age % growthInterval === 0 && this.brain.visualResolution < this.cfg.maxResolution) {
       this.brain.visualResolution++;
       this.emit({ type: 'resolution_gained', newResolution: this.brain.visualResolution });
       const regionsPerSide = Math.pow(2, this.brain.visualResolution);
       console.log(
-        `[baby_0] 👁️ Resolution gained: now sees ${regionsPerSide}×${regionsPerSide} regions`
+        `[${this.cfg.name}] 👁️ Resolution gained: now sees ${regionsPerSide}×${regionsPerSide} regions`
       );
     }
 
     console.log(
-      `[baby_0] ✨ Pattern #${this.brain.age} cached at ${JSON.stringify(location.path)} (confidence: ${pattern.confidence})`
+      `[${this.cfg.name}] ✨ Pattern #${this.brain.age} cached at ${JSON.stringify(location.path)} (confidence: ${pattern.confidence})`
     );
     this.emit({ type: 'pattern_cached', pattern });
 
@@ -727,35 +788,39 @@ export class BabyAgent {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// SINGLETON INSTANCE
+// SINGLETON INSTANCES
 // ═══════════════════════════════════════════════════════════════════════════
 
-export const babyAgent = new BabyAgent();
+export const babyAgent  = new BabyAgent(BABY_0_CONFIG);
+export const baby1Agent = new BabyAgent(BABY_1_CONFIG);
 
-// Expose on window for dev-console brain saves:
-// window.__baby0__.saveBrain()  → copies JSON to clipboard
-// window.__baby0__.getBrainJSON()  → returns raw JSON string
-if (typeof window !== 'undefined') {
-  (window as any).__baby0__ = {
-    agent: babyAgent,
-    getBrainJSON: () => JSON.stringify(babyAgent.serialize(), null, 2),
+/** Helper: create a dev-console toolbelt for any agent instance */
+function makeDevTools(agent: BabyAgent, name: string) {
+  return {
+    agent,
+    getBrainJSON: () => JSON.stringify(agent.serialize(), null, 2),
     saveBrain: () => {
-      const json = JSON.stringify(babyAgent.serialize(), null, 2);
+      const json = JSON.stringify(agent.serialize(), null, 2);
       navigator.clipboard.writeText(json).then(
-        () => console.log('[baby_0] 🧠 Brain JSON copied to clipboard! Paste it to save.'),
-        () => console.log('[baby_0] 🧠 Brain JSON (copy manually):\n' + json)
+        () => console.log(`[${name}] 🧠 Brain JSON copied to clipboard!`),
+        () => console.log(`[${name}] 🧠 Brain JSON (copy manually):\n` + json)
       );
       return json;
     },
     clearBrain: () => {
-      babyAgent.clearStorage();
-      console.log('[baby_0] 🔄 Reload the page to start with a fresh brain.');
+      agent.clearStorage();
+      console.log(`[${name}] 🔄 Reload the page to start with a fresh brain.`);
     },
     status: () => {
-      const s = babyAgent.serialize() as any;
-      console.log(`[baby_0] 🧠 ${s.stats.totalPatterns} patterns | ${s.stats.gridSize}×${s.stats.gridSize} res | wild: ${s.wildMode} | energy: ${(s.brain.energy * 100).toFixed(0)}%`);
+      const s = agent.serialize() as any;
+      console.log(`[${name}] 🧠 ${s.stats.totalPatterns} patterns | ${s.stats.gridSize}×${s.stats.gridSize} res | wild: ${s.wildMode} | energy: ${(s.brain.energy * 100).toFixed(0)}%`);
       return s.stats;
     },
   };
-  console.log('[baby_0] 💡 Dev tools: window.__baby0__.saveBrain() to snapshot the brain.');
+}
+
+if (typeof window !== 'undefined') {
+  (window as any).__baby0__ = makeDevTools(babyAgent,  'baby_0');
+  (window as any).__baby1__ = makeDevTools(baby1Agent, 'baby_1');
+  console.log('[geoai] 💡 Dev tools: window.__baby0__ / window.__baby1__ — .saveBrain() .status() .clearBrain()');
 }
