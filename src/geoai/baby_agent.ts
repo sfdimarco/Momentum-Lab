@@ -49,13 +49,21 @@ export class BabyAgent {
   private listeners: BabyAgentListener[] = [];
   private intervalId: ReturnType<typeof setInterval> | null = null;
   private canvasRef: HTMLCanvasElement | null = null;
+  // Shadow canvas: baby_0-owned copy used for pixel reads.
+  // getImageData on p5's canvas is blocked in Claude-in-Chrome's extension
+  // context (fingerprint protection).  We mirror pixel data into this canvas
+  // via setInterval at 60ms so captureCanvas() always has a readable surface.
+  private shadowCanvas: HTMLCanvasElement | null = null;
+  private shadowCtx: CanvasRenderingContext2D | null = null;
+  private shadowIntervalId: ReturnType<typeof setInterval> | null = null;
   private prevPixels: ImageData | null = null;
   private prevColors: Set<string> = new Set();
   private ticksSinceReward: number = 0;
-  
+
   // Configuration
   private readonly TICK_RATE_MS = 500;        // 2 ticks/second — deliberate, thoughtful
   private readonly WILD_TICK_RATE_MS = 80;    // 12.5 ticks/second — UNLEASHED
+  private readonly SHADOW_SYNC_MS = 60;       // mirror source canvas → shadow at ~16fps
   private readonly FRUSTRATION_TICKS = 6;    // 3 seconds at 2 ticks/sec
   private readonly MAX_RESOLUTION = 8;       // depth 8 = 256 regions max
   private readonly MIN_REWARD_FOR_CACHE = 0.3; // only cache rewards >= this
@@ -125,9 +133,55 @@ export class BabyAgent {
 
   /**
    * Give the agent eyes — point it at the canvas element.
+   * Creates a shadow canvas that mirrors the source at SHADOW_SYNC_MS
+   * so captureCanvas() is never blocked by extension-context restrictions
+   * on getImageData (Chrome fingerprint protection on p5's canvas).
    */
   setCanvas(canvas: HTMLCanvasElement | null) {
+    // Tear down previous shadow
+    if (this.shadowIntervalId) {
+      clearInterval(this.shadowIntervalId);
+      this.shadowIntervalId = null;
+    }
+    if (this.shadowCanvas) {
+      this.shadowCanvas.remove();
+      this.shadowCanvas = null;
+      this.shadowCtx = null;
+    }
+
     this.canvasRef = canvas;
+    if (!canvas) return;
+
+    // Create a tiny in-page canvas baby_0 fully owns (no taint issues)
+    const sc = document.createElement('canvas');
+    sc.width  = canvas.width;
+    sc.height = canvas.height;
+    sc.id = '__baby0_shadow__';
+    sc.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0.01;pointer-events:none;z-index:-1;';
+    document.body.appendChild(sc);
+    this.shadowCanvas = sc;
+    this.shadowCtx = sc.getContext('2d', { willReadFrequently: true });
+
+    // Mirror source → shadow at SHADOW_SYNC_MS
+    this.shadowIntervalId = setInterval(() => {
+      if (!this.canvasRef || !this.shadowCtx) return;
+      try {
+        this.shadowCtx.drawImage(this.canvasRef, 0, 0);
+      } catch {
+        // Cross-origin taint on drawImage — fall back to doing nothing;
+        // wild-mode JS animation will write directly to shadowCanvas instead.
+      }
+    }, this.SHADOW_SYNC_MS);
+
+    console.log(`[baby_0] 👁️ Shadow canvas online — ${sc.width}×${sc.height}, mirroring every ${this.SHADOW_SYNC_MS}ms`);
+  }
+
+  /**
+   * In wild mode the shadow canvas can also be used as the animation target
+   * directly (bypasses p5 entirely — useful when wildAnimation prop is stale).
+   */
+  getShadowCanvas(): HTMLCanvasElement | null {
+    return this.shadowCanvas;
   }
 
   /**
@@ -195,9 +249,12 @@ export class BabyAgent {
         currentFocus: this.brain.currentFocus,
       },
       patternCache: this.brain.patternCache.map(p => ({
-        path: p.path,
+        id: p.id,
+        path: p.geoAddress?.path ?? [],      // geoAddress.path is the real quadtree address
+        depth: p.geoAddress?.depth ?? 0,
         confidence: p.confidence,
-        lastSeen: p.lastSeen,
+        discoveredAtAge: p.discoveredAtAge,
+        lastFiredAt: p.lastFiredAt,
         rewardValue: p.rewardValue,
       })),
       wildMode: this.wildMode,
@@ -222,9 +279,17 @@ export class BabyAgent {
     this.brain.age = snapshot.brain.age ?? 0;
     this.brain.energy = snapshot.brain.energy ?? 1.0;
     this.brain.frustration = 0; // always start calm after load
-    // Restore pattern cache
+    // Restore pattern cache — reconstruct full SpatialPattern shape from snapshot
     if (Array.isArray(snapshot.patternCache)) {
-      this.brain.patternCache = snapshot.patternCache as SpatialPattern[];
+      this.brain.patternCache = snapshot.patternCache.map((p: any) => ({
+        id: p.id ?? `p_restored_${Math.random()}`,
+        geoAddress: { depth: p.depth ?? p.path?.length ?? 0, path: p.path ?? [] },
+        actionSequence: [{ depth: p.depth ?? 0, path: p.path ?? [] }],
+        visualSignature: [],
+        confidence: p.confidence ?? 0.1,
+        discoveredAtAge: p.discoveredAtAge ?? 0,
+        lastFiredAt: p.lastFiredAt ?? 0,
+      } as SpatialPattern));
     }
     console.log(
       `[baby_0] 🧠 Brain loaded from ${snapshot.timestamp}. `,
@@ -246,7 +311,53 @@ export class BabyAgent {
     // Always (re)start at wild tick rate — even if interval was dead after HMR
     if (this.intervalId) clearInterval(this.intervalId);
     this.intervalId = setInterval(() => this.tick(), this.WILD_TICK_RATE_MS);
+
+    // Paint Perlin noise directly onto shadowCanvas at 50ms (setInterval — not
+    // rAF, which gets throttled when the tab is in background).  This guarantees
+    // baby_0 always has moving pixels to eat even if p5's wildAnimation prop
+    // is stale after HMR or a focus change.
+    if (this.shadowCanvas && this.shadowCtx) {
+      this._startShadowWildPaint();
+    }
+
     console.log('[baby_0] ⚡ WILD MODE — leash removed. Running at 12.5Hz. No rest. No ceiling.');
+  }
+
+  /** Internal: paint high-contrast cycling color blocks onto shadowCanvas. */
+  private _shadowWildPaintId: ReturnType<typeof setInterval> | null = null;
+  private _shadowWildFrame = 0;
+
+  private _startShadowWildPaint() {
+    if (this._shadowWildPaintId) clearInterval(this._shadowWildPaintId);
+    const ctx = this.shadowCtx!;
+    const W = this.shadowCanvas!.width;
+    const H = this.shadowCanvas!.height;
+    const BLOCK = 20;
+
+    const PALS = [
+      [[255,0,0],[0,255,0],[0,0,255],[255,255,0]],
+      [[255,0,255],[0,255,255],[255,128,0],[128,0,255]],
+      [[200,50,50],[50,200,50],[50,50,200],[200,200,50]],
+      [[80,0,0],[0,80,0],[0,0,80],[80,80,0]],
+    ];
+
+    this._shadowWildPaintId = setInterval(() => {
+      if (!this.wildMode) {
+        clearInterval(this._shadowWildPaintId!);
+        this._shadowWildPaintId = null;
+        return;
+      }
+      this._shadowWildFrame++;
+      const f = this._shadowWildFrame;
+      const pal = PALS[f % PALS.length];
+      for (let x = 0; x < W; x += BLOCK) {
+        for (let y = 0; y < H; y += BLOCK) {
+          const [r, g, b] = pal[Math.floor(Math.random() * pal.length)];
+          ctx.fillStyle = `rgb(${r},${g},${b})`;
+          ctx.fillRect(x, y, BLOCK, BLOCK);
+        }
+      }
+    }, 50);
   }
 
   /**
@@ -254,6 +365,10 @@ export class BabyAgent {
    */
   disableWildMode() {
     this.wildMode = false;
+    if (this._shadowWildPaintId) {
+      clearInterval(this._shadowWildPaintId);
+      this._shadowWildPaintId = null;
+    }
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = setInterval(() => this.tick(), this.TICK_RATE_MS);
@@ -388,11 +503,15 @@ export class BabyAgent {
    * Capture pixel data from canvas.
    */
   private captureCanvas(): ImageData | null {
-    if (!this.canvasRef) return null;
+    // Prefer shadow canvas (immune to extension-context getImageData restriction)
+    const target = this.shadowCanvas ?? this.canvasRef;
+    if (!target) return null;
     try {
-      const ctx = this.canvasRef.getContext('2d');
+      const ctx = target === this.shadowCanvas
+        ? this.shadowCtx
+        : target.getContext('2d', { willReadFrequently: true });
       if (!ctx) return null;
-      return ctx.getImageData(0, 0, this.canvasRef.width, this.canvasRef.height);
+      return ctx.getImageData(0, 0, target.width, target.height);
     } catch {
       return null;
     }
@@ -404,12 +523,15 @@ export class BabyAgent {
    */
   private computeQuadrantEntropy(quadrants: QuadrantAddress[]): Map<string, number> {
     const result = new Map<string, number>();
-    if (!this.canvasRef) return result;
+    const target = this.shadowCanvas ?? this.canvasRef;
+    if (!target) return result;
 
-    const ctx = this.canvasRef.getContext('2d');
+    const ctx = target === this.shadowCanvas
+      ? this.shadowCtx
+      : target.getContext('2d', { willReadFrequently: true });
     if (!ctx) return result;
 
-    const { width, height } = this.canvasRef;
+    const { width, height } = target;
 
     for (const q of quadrants) {
       const region = quadrantToPixelRegion(q, width, height);
