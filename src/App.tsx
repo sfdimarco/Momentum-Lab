@@ -936,6 +936,7 @@ export default function App() {
                     visible={babyMode}
                     width={400}
                     height={400}
+                    label="baby_0"
                     brain={babyBrainSnap}
                     lastReward={lastReward && (Date.now() - lastReward.ts < 1500) ? lastReward : null}
                     quadrantEntropy={new Map()}
@@ -945,6 +946,7 @@ export default function App() {
                     visible={baby1Mode}
                     width={400}
                     height={400}
+                    label="baby_1"
                     brain={baby1BrainSnap}
                     lastReward={last1Reward && (Date.now() - last1Reward.ts < 1500) ? last1Reward : null}
                     quadrantEntropy={new Map()}

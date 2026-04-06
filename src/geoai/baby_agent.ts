@@ -32,6 +32,7 @@ export type BabyAgentEvent =
   | { type: 'focus_changed'; quadrant: QuadrantAddress }
   | { type: 'reward_fired'; quadrant: QuadrantAddress; value: number; tier: string }
   | { type: 'pattern_cached'; pattern: SpatialPattern }
+  | { type: 'pattern_reinforced'; pattern: SpatialPattern; prevConfidence: number }
   | { type: 'frustration_update'; level: number }
   | { type: 'resolution_gained'; newResolution: number }
   | { type: 'energy_update'; level: number }
@@ -744,12 +745,40 @@ export class BabyAgent {
   // ─────────────────────────────────────────────────────────────────────────
 
   /**
-   * Cache a new pattern when reward fires.
-   * Increments age, triggers growth when age % 5 === 0.
+   * Cache or reinforce a pattern when reward fires.
+   *
+   * If a pattern already exists at this exact GEO path:
+   *   → REINFORCE: confidence += 0.1 (clamp 1.0), update lastFiredAt
+   *   → emit pattern_reinforced — SpatialEye turns orange → pink at 0.7+
+   *
+   * If no pattern exists yet:
+   *   → CACHE: new pattern, confidence = 0.1, age++, trigger growth
    */
   private cachePattern(location: QuadrantAddress, delta: number) {
-    const id = `p_${this.brain.age}_${Date.now()}`;
+    const pathKey = location.path.join('→');
 
+    // ── Reinforcement path ────────────────────────────────────────────────
+    const existing = this.brain.patternCache.find(
+      p => p.geoAddress?.path?.join('→') === pathKey
+    );
+    if (existing) {
+      const prevConfidence = existing.confidence;
+      existing.confidence = Math.min(1.0, existing.confidence + 0.1);
+      existing.lastFiredAt = this.brain.tick;
+      this.emit({ type: 'pattern_reinforced', pattern: existing, prevConfidence });
+
+      if (existing.confidence >= 0.7 && prevConfidence < 0.7) {
+        console.log(
+          `[${this.cfg.name}] 🌸 Pattern STABILIZED at [${pathKey}] — confidence ${existing.confidence.toFixed(1)} (orange → pink)`
+        );
+      }
+      // Auto-save on stabilization
+      if (this.brain.age % 5 === 0) this.persistToStorage();
+      return;
+    }
+
+    // ── New pattern path ──────────────────────────────────────────────────
+    const id = `p_${this.brain.age}_${Date.now()}`;
     const pattern: SpatialPattern = {
       id,
       geoAddress: location,
@@ -776,11 +805,11 @@ export class BabyAgent {
     }
 
     console.log(
-      `[${this.cfg.name}] ✨ Pattern #${this.brain.age} cached at ${JSON.stringify(location.path)} (confidence: ${pattern.confidence})`
+      `[${this.cfg.name}] ✨ Pattern #${this.brain.age} at [${pathKey}] (confidence: ${pattern.confidence})`
     );
     this.emit({ type: 'pattern_cached', pattern });
 
-    // Auto-save every 5 patterns (cheap, survives HMR + page refresh)
+    // Auto-save every 5 patterns
     if (this.brain.age % 5 === 0) {
       this.persistToStorage();
     }

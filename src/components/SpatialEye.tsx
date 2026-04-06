@@ -27,6 +27,7 @@ interface SpatialEyeProps {
   visible: boolean;
   width: number;
   height: number;
+  label?: string;   // agent name shown in HUD (default: 'baby_0')
   brain: {
     visualResolution: number;
     currentFocus: { depth: number; path: string[] } | null;
@@ -54,6 +55,7 @@ const SpatialEye: React.FC<SpatialEyeProps> = ({
   visible,
   width,
   height,
+  label = 'baby_0',
   brain,
   lastReward,
   quadrantEntropy,
@@ -70,10 +72,15 @@ const SpatialEye: React.FC<SpatialEyeProps> = ({
   const lastRewardRef = useRef(lastReward);
   const quadrantEntropyRef = useRef(quadrantEntropy);
   const visibleRef = useRef(visible);
+  const labelRef = useRef(label);
 
   useEffect(() => {
     brainRef.current = brain;
   }, [brain]);
+
+  useEffect(() => {
+    labelRef.current = label;
+  }, [label]);
 
   useEffect(() => {
     lastRewardRef.current = lastReward;
@@ -346,7 +353,7 @@ const SpatialEye: React.FC<SpatialEyeProps> = ({
       const ageStr = Math.floor(curBrain.patternCache.length);
       const resStr = Math.pow(2, curBrain.visualResolution);
       ctx.fillText(
-        `baby_0 | age: ${ageStr} | res: ${resStr}x${resStr}`,
+        `${labelRef.current} | age: ${ageStr} | res: ${resStr}x${resStr}`,
         hudX,
         hudY + 16
       );
