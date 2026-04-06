@@ -23,6 +23,13 @@
 
 import React, { useEffect, useRef } from 'react';
 
+/** A pattern that just crossed the pink (0.7) threshold — triggers a starburst */
+export interface PatternLockEvent {
+  path: string[];
+  depth: number;
+  ts: number;
+}
+
 interface SpatialEyeProps {
   visible: boolean;
   width: number;
@@ -37,6 +44,8 @@ interface SpatialEyeProps {
   };
   lastReward: { quadrant: { depth: number; path: string[] }; value: number } | null;
   quadrantEntropy: Map<string, number>;
+  /** Flash: pattern just crossed the 0.7 pink threshold — fire a starburst */
+  lastLock?: PatternLockEvent | null;
 }
 
 // Synesthetic color palette
@@ -59,6 +68,7 @@ const SpatialEye: React.FC<SpatialEyeProps> = ({
   brain,
   lastReward,
   quadrantEntropy,
+  lastLock = null,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const frameIdRef = useRef<number | null>(null);
@@ -66,6 +76,8 @@ const SpatialEye: React.FC<SpatialEyeProps> = ({
   const lastRewardTimeRef = useRef<number | null>(null);
   const resolutionChangeTimeRef = useRef<number | null>(null);
   const prevResolutionRef = useRef<number>(brain.visualResolution);
+  const lastLockRef = useRef<PatternLockEvent | null>(null);
+  const lastLockTimeRef = useRef<number | null>(null);
 
   // Refs for animation loop to avoid stale closures
   const brainRef = useRef(brain);
@@ -96,6 +108,14 @@ const SpatialEye: React.FC<SpatialEyeProps> = ({
   useEffect(() => {
     visibleRef.current = visible;
   }, [visible]);
+
+  // Track pattern lock events
+  useEffect(() => {
+    if (lastLock && lastLock !== lastLockRef.current) {
+      lastLockRef.current = lastLock;
+      lastLockTimeRef.current = Date.now();
+    }
+  }, [lastLock]);
 
   // Detect resolution changes
   useEffect(() => {
@@ -281,6 +301,52 @@ const SpatialEye: React.FC<SpatialEyeProps> = ({
           ctx.beginPath();
           ctx.arc(centerX, centerY, expandRadius, 0, Math.PI * 2);
           ctx.stroke();
+        }
+      }
+
+      // ── 3b. PATTERN LOCK STARBURST ────────────────────────────────
+      // Fires when a pattern crosses the pink (0.7) threshold.
+      // Big, visible, celebratory — the "it found something!" moment.
+      if (lastLockRef.current && lastLockTimeRef.current !== null) {
+        const lockAge = now - lastLockTimeRef.current;
+        const lockDuration = 2200;
+
+        if (lockAge < lockDuration) {
+          const lockProgress = lockAge / lockDuration;
+          const lockAlpha = Math.pow(1 - lockProgress, 1.5);
+
+          const lockRect = getQuadrantRect(lastLockRef.current.path, width, height);
+          const cx = lockRect.x + lockRect.w / 2;
+          const cy = lockRect.y + lockRect.h / 2;
+
+          // Expanding ring 1 (fast)
+          const r1 = 10 + lockProgress * 90;
+          ctx.strokeStyle = COLORS.pink + Math.floor(lockAlpha * 200).toString(16).padStart(2, '0');
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(cx, cy, r1, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // Expanding ring 2 (slower)
+          const r2 = 10 + lockProgress * 50;
+          ctx.strokeStyle = COLORS.pink + Math.floor(lockAlpha * 150).toString(16).padStart(2, '0');
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.arc(cx, cy, r2, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // Center glow
+          ctx.fillStyle = COLORS.pink + Math.floor(lockAlpha * 80).toString(16).padStart(2, '0');
+          ctx.fillRect(lockRect.x, lockRect.y, lockRect.w, lockRect.h);
+
+          // "🌸" text burst near the quadrant (only briefly)
+          if (lockProgress < 0.4) {
+            ctx.font = `bold ${Math.floor(12 + lockProgress * 8)}px monospace`;
+            ctx.fillStyle = `rgba(236,72,153,${lockAlpha})`;
+            ctx.textAlign = 'center';
+            ctx.fillText('🌸 LOCKED', cx, lockRect.y - 8);
+            ctx.textAlign = 'left';
+          }
         }
       }
 

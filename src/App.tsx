@@ -8,6 +8,9 @@ import { MomentumEngine, GameState } from './lib/engine';
 import * as Blockly from 'blockly';
 import SynestheticLayer from './components/SynestheticLayer';
 import SpatialEye from './components/SpatialEye';
+import type { PatternLockEvent } from './components/SpatialEye';
+import { PatternBurst, DiscoveryFlashOverlay } from './components/PatternBurst';
+import type { DiscoveryFlash } from './components/PatternBurst';
 import { syncFromGameState, resetSpatialState } from './lib/spatial-state';
 import { babyAgent, baby1Agent, BabyAgentEvent } from './geoai/baby_agent';
 import type { SpatialPattern } from './geoai/parser';
@@ -62,6 +65,19 @@ export default function App() {
   } | null>(null);
 
   const canvasContainerRef = useRef<HTMLDivElement>(null);
+
+  // ── Pattern Burst (bidirectional student-AI loop) ─────────────────────────
+  const [discoveryFlashes, setDiscoveryFlashes] = useState<DiscoveryFlash[]>([]);
+  const [lastLock0, setLastLock0] = useState<PatternLockEvent | null>(null);
+  const [lastLock1, setLastLock1] = useState<PatternLockEvent | null>(null);
+
+  const handleFlash = React.useCallback((flash: DiscoveryFlash) => {
+    setDiscoveryFlashes(prev => [...prev, flash]);
+  }, []);
+
+  const handleFlashExpired = React.useCallback((id: number) => {
+    setDiscoveryFlashes(prev => prev.filter(f => f.id !== id));
+  }, []);
 
   const downloadProject = () => {
     if (!workspaceRef.current) return;
@@ -156,6 +172,13 @@ export default function App() {
       if (event.type === 'reward_fired') {
         setLastReward({ quadrant: event.quadrant as any, value: event.value, ts: Date.now() });
       }
+      // Track pattern lock for SpatialEye starburst
+      if (event.type === 'pattern_reinforced') {
+        const { pattern, prevConfidence } = event;
+        if (prevConfidence < 0.7 && pattern.confidence >= 0.7 && pattern.geoAddress?.path) {
+          setLastLock0({ path: pattern.geoAddress.path, depth: pattern.geoAddress.depth, ts: Date.now() });
+        }
+      }
       setBabyBrainSnap({
         visualResolution: b.visualResolution,
         currentFocus: b.currentFocus as any,
@@ -203,6 +226,13 @@ export default function App() {
       const b = baby1Agent.getBrain();
       if (event.type === 'reward_fired') {
         setLast1Reward({ quadrant: event.quadrant as any, value: event.value, ts: Date.now() });
+      }
+      // Track pattern lock for SpatialEye starburst
+      if (event.type === 'pattern_reinforced') {
+        const { pattern, prevConfidence } = event;
+        if (prevConfidence < 0.7 && pattern.confidence >= 0.7 && pattern.geoAddress?.path) {
+          setLastLock1({ path: pattern.geoAddress.path, depth: pattern.geoAddress.depth, ts: Date.now() });
+        }
       }
       setBaby1BrainSnap({
         visualResolution: b.visualResolution,
@@ -936,6 +966,7 @@ export default function App() {
                     brain={babyBrainSnap}
                     lastReward={lastReward && (Date.now() - lastReward.ts < 1500) ? lastReward : null}
                     quadrantEntropy={new Map()}
+                    lastLock={lastLock0}
                   />
                   {/* baby_1 overlay — same canvas, different gaze */}
                   <SpatialEye
@@ -946,6 +977,12 @@ export default function App() {
                     brain={baby1BrainSnap}
                     lastReward={last1Reward && (Date.now() - last1Reward.ts < 1500) ? last1Reward : null}
                     quadrantEntropy={new Map()}
+                    lastLock={lastLock1}
+                  />
+                  {/* Discovery Flash overlays — visible "the AI found THIS" moments */}
+                  <DiscoveryFlashOverlay
+                    flashes={discoveryFlashes}
+                    onExpired={handleFlashExpired}
                   />
                 </div>
 
@@ -989,6 +1026,19 @@ export default function App() {
                       <span className="opacity-70">📍 [{babyBrainSnap.currentFocus.path.join('→')}]</span>
                     )}
                   </div>
+                )}
+
+                {/* ── Pattern Burst — bidirectional AI↔student loop ────── */}
+                {(babyMode || baby1Mode) && (
+                  <PatternBurst
+                    agents={[
+                      ...(babyMode ? [{ agent: babyAgent, name: 'baby_0', color: 'cyan' as const, accentHex: '#06b6d4' }] : []),
+                      ...(baby1Mode ? [{ agent: baby1Agent, name: 'baby_1', color: 'pink' as const, accentHex: '#ec4899' }] : []),
+                    ]}
+                    canvasContainerRef={canvasContainerRef}
+                    onFlash={handleFlash}
+                    visible={babyMode || baby1Mode}
+                  />
                 )}
 
                 {/* ── baby_1 live telemetry strip ─────────────────────── */}
