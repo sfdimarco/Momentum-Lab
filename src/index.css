@@ -1,0 +1,32 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@400;600;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Outfit", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --animate-gradient-x: gradient-x 3s ease infinite;
+  
+  @keyframes gradient-x {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+}
+
+body {
+  @apply font-sans;
+}
+
+.blocklyMainBackground {
+  stroke: none !important;
+}
+
+.blocklyToolboxDiv {
+  background-color: #f8fafc !important;
+  border-right: 1px solid #e2e8f0 !important;
+}
+
+.blocklyTreeLabel {
+  font-family: "Outfit", sans-serif !important;
+  font-weight: 600 !important;
+  color: #475569 !important;
+}

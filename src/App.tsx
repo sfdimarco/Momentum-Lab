@@ -1,0 +1,998 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Play, Square, Zap, Eye, History, RotateCcw, Info, Bot, Sparkles, Download, Upload, Maximize2, Minimize2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import BlocklyEditor from './components/BlocklyEditor';
+import GameCanvas from './components/GameCanvas';
+import TutorAssistant from './components/TutorAssistant';
+import { MomentumEngine, GameState } from './lib/engine';
+import * as Blockly from 'blockly';
+import SynestheticLayer from './components/SynestheticLayer';
+import SpatialEye from './components/SpatialEye';
+import { syncFromGameState, resetSpatialState } from './lib/spatial-state';
+import { babyAgent, BabyAgentEvent } from './geoai/baby_agent';
+import type { SpatialPattern } from './geoai/parser';
+
+export default function App() {
+  const [gameState, setGameState] = useState<GameState | null>(null);
+  const [isRunning, setIsRunning] = useState(false);
+  const [xRayMode, setXRayMode] = useState(false);
+  const [scrubValue, setScrubValue] = useState(100);
+  const [isScrubbing, setIsScrubbing] = useState(false);
+  const [showIntro, setShowIntro] = useState(true);
+  const [isTutorOpen, setIsTutorOpen] = useState(false);
+  const [workspaceXml, setWorkspaceXml] = useState('');
+  const [isCanvasFullScreen, setIsCanvasFullScreen] = useState(false);
+  
+  const engineRef = useRef(new MomentumEngine());
+  const [synestheticMode, setSynestheticMode] = useState(true); // Pillar 2 toggle
+  const workspaceRef = useRef<Blockly.WorkspaceSvg | null>(null);
+  // Ref so handleWorkspaceChange (callback) can read current running state without stale closure
+  const isRunningRef = useRef(false);
+
+  // ── baby_0 state ──────────────────────────────────────────────────────────
+  const [babyMode, setBabyMode] = useState(false);
+  const [babyBrainSnap, setBabyBrainSnap] = useState({
+    visualResolution: 2,
+    currentFocus: null as { depth: number; path: string[] } | null,
+    frustration: 0,
+    energy: 1.0,
+    patternCache: [] as SpatialPattern[],
+  });
+  const [lastReward, setLastReward] = useState<{
+    quadrant: { depth: number; path: string[] };
+    value: number;
+    ts: number;
+  } | null>(null);
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
+
+  const downloadProject = () => {
+    if (!workspaceRef.current) return;
+    const xml = Blockly.Xml.workspaceToDom(workspaceRef.current);
+    const xmlText = Blockly.Xml.domToText(xml);
+    const blob = new Blob([xmlText], { type: 'text/xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'momentum-project.xml';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const uploadProject = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.xml';
+    input.onchange = (e: any) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (re: any) => {
+        const xmlText = re.target.result;
+        if (workspaceRef.current) {
+          workspaceRef.current.clear();
+          const xml = Blockly.utils.xml.textToDom(xmlText);
+          Blockly.Xml.domToWorkspace(xml, workspaceRef.current);
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  };
+  const logicRef = useRef<any>({ 
+    bounce: false, 
+    gravity: 0,
+    friction: 0,
+    appearance: null, 
+    collide: false, 
+    collisionActions: [],
+    movements: [], 
+    texts: [],
+    cameraFollowId: null,
+    tickActions: [],
+    startActions: [],
+    keyActions: {} 
+  });
+  const keysPressed = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      keysPressed.current.add(e.key);
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      keysPressed.current.delete(e.key);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
+
+  useEffect(() => {
+    setGameState(engineRef.current.getState());
+  }, []);
+
+  // ── baby_0 lifecycle ─────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!babyMode) {
+      babyAgent.stop();
+      return;
+    }
+    // Give the baby eyes — find the p5 canvas inside the container
+    const findCanvas = () => {
+      if (!canvasContainerRef.current) return;
+      const c = canvasContainerRef.current.querySelector('canvas');
+      if (c) babyAgent.setCanvas(c);
+    };
+    findCanvas();
+    // Also try after a brief delay in case p5 hasn't mounted yet
+    const t = setTimeout(findCanvas, 500);
+
+    // Subscribe to agent events → update React state for SpatialEye
+    const unsub = babyAgent.on((event: BabyAgentEvent) => {
+      const b = babyAgent.getBrain();
+      if (event.type === 'reward_fired') {
+        setLastReward({ quadrant: event.quadrant as any, value: event.value, ts: Date.now() });
+      }
+      // Sync brain snapshot on every event (cheap — events are 2/sec)
+      setBabyBrainSnap({
+        visualResolution: b.visualResolution,
+        currentFocus: b.currentFocus as any,
+        frustration: b.frustration,
+        energy: b.energy,
+        patternCache: [...b.patternCache],
+      });
+    });
+
+    babyAgent.start();
+    console.log('[baby_0] 👁️ Watching Momentum Lab...');
+
+    return () => {
+      clearTimeout(t);
+      unsub();
+      babyAgent.stop();
+    };
+  }, [babyMode]);
+
+  useEffect(() => {
+    let interval: any;
+    if (isRunning && !isScrubbing) {
+      interval = setInterval(() => {
+        engineRef.current.update({ 
+          ...logicRef.current, 
+          keysPressed: keysPressed.current 
+        });
+        const state = engineRef.current.getState();
+        setGameState({ ...state });
+        // Sync to spatial buffer (feeds SynestheticLayer every frame)
+        syncFromGameState(
+          state.sprites,
+          { gravity: logicRef.current.gravity ?? 0,
+            bounce:  logicRef.current.bounce  ?? 0,
+            friction:logicRef.current.friction ?? 0 },
+          400, 400, 1/60
+        );
+      }, 1000 / 60);
+    }
+    return () => clearInterval(interval);
+  }, [isRunning, isScrubbing]);
+
+  const handleWorkspaceChange = (workspace: Blockly.WorkspaceSvg) => {
+    workspaceRef.current = workspace;
+    
+    // Update XML for tutor
+    const xml = Blockly.Xml.workspaceToDom(workspace);
+    const xmlText = Blockly.Xml.domToPrettyText(xml);
+    setWorkspaceXml(xmlText);
+
+    // Extract logic from blocks
+    const allBlocks = workspace.getAllBlocks(false);
+    
+    // Recursive block stack processor
+    const serializeExpression = (block: Blockly.Block | null): any => {
+      if (!block) return 0;
+      
+      if (block.type === 'math_number') {
+        return Number(block.getFieldValue('NUM'));
+      }
+      if (block.type === 'logic_boolean') {
+        return block.getFieldValue('BOOL') === 'TRUE';
+      }
+      if (block.type === 'math_arithmetic') {
+        return {
+          type: 'math_arithmetic',
+          a: serializeExpression(block.getInputTargetBlock('A')),
+          b: serializeExpression(block.getInputTargetBlock('B')),
+          op: block.getFieldValue('OP')
+        };
+      }
+      if (block.type === 'math_single') {
+        return {
+          type: 'math_single',
+          op: block.getFieldValue('OP'),
+          num: serializeExpression(block.getInputTargetBlock('NUM'))
+        };
+      }
+      if (block.type === 'math_trig') {
+        return {
+          type: 'math_trig',
+          op: block.getFieldValue('OP'),
+          num: serializeExpression(block.getInputTargetBlock('NUM'))
+        };
+      }
+      if (block.type === 'math_constant_custom') {
+        return { type: 'math_constant', constant: block.getFieldValue('CONSTANT') };
+      }
+      if (block.type === 'math_round') {
+        return {
+          type: 'math_round',
+          op: block.getFieldValue('OP'),
+          num: serializeExpression(block.getInputTargetBlock('NUM'))
+        };
+      }
+      if (block.type === 'math_modulo') {
+        return {
+          type: 'math_modulo',
+          dividend: serializeExpression(block.getInputTargetBlock('DIVIDEND')),
+          divisor: serializeExpression(block.getInputTargetBlock('DIVISOR'))
+        };
+      }
+      if (block.type === 'math_random_int') {
+        return {
+          type: 'math_random_int',
+          from: serializeExpression(block.getInputTargetBlock('FROM')),
+          to: serializeExpression(block.getInputTargetBlock('TO'))
+        };
+      }
+      if (block.type === 'logic_compare') {
+        return {
+          type: 'logic_compare',
+          a: serializeExpression(block.getInputTargetBlock('A')),
+          b: serializeExpression(block.getInputTargetBlock('B')),
+          op: block.getFieldValue('OP')
+        };
+      }
+      if (block.type === 'logic_operation') {
+        return {
+          type: 'logic_operation',
+          a: serializeExpression(block.getInputTargetBlock('A')),
+          b: serializeExpression(block.getInputTargetBlock('B')),
+          op: block.getFieldValue('OP')
+        };
+      }
+      if (block.type === 'is_key_pressed') {
+        return { type: 'is_key_pressed', key: block.getFieldValue('KEY') };
+      }
+      if (block.type === 'get_sprite_property') {
+        return {
+          type: 'get_sprite_property',
+          spriteId: Number(block.getFieldValue('SPRITE_ID')),
+          property: block.getFieldValue('PROPERTY')
+        };
+      }
+      if (block.type === 'current_frame') {
+        return { type: 'current_frame' };
+      }
+      if (block.type === 'sprite_id') {
+        return { type: 'sprite_id' };
+      }
+      if (block.type === 'db_get') {
+        return { 
+          type: 'db_get',
+          key: block.getFieldValue('KEY')
+        };
+      }
+      if (block.type === 'get_variable') {
+        return { 
+          type: 'get_variable',
+          var: block.getFieldValue('VAR')
+        };
+      }
+      
+      return 0;
+    };
+
+    const processBlockStack = (startBlock: Blockly.Block | null): any[] => {
+      const actions: any[] = [];
+      let current = startBlock;
+      
+      while (current) {
+        if (current.type === 'move_sprite') {
+          actions.push({ 
+            type: 'move', 
+            direction: current.getFieldValue('DIRECTION'), 
+            steps: serializeExpression(current.getInputTargetBlock('STEPS')) 
+          });
+        } else if (current.type === 'rotate_sprite') {
+          actions.push({ 
+            type: 'rotate', 
+            angle: serializeExpression(current.getInputTargetBlock('ANGLE')) 
+          });
+        } else if (current.type === 'flip_sprite') {
+          actions.push({ 
+            type: 'flip', 
+            axis: current.getFieldValue('AXIS') 
+          });
+        } else if (current.type === 'change_appearance') {
+          actions.push({ 
+            type: 'appearance', 
+            color: current.getFieldValue('COLOR'), 
+            size: serializeExpression(current.getInputTargetBlock('SIZE')), 
+            effect: current.getFieldValue('EFFECT') 
+          });
+        } else if (current.type === 'print_text') {
+          // Simple "Hello World" block — centered, no config needed
+          actions.push({
+            type: 'text',
+            text: current.getFieldValue('TEXT'),
+            x: 200, y: 200, size: 32, color: '#ffffff'
+          });
+        } else if (current.type === 'display_text') {
+          // Uses FieldNumber (not value inputs) — read with getFieldValue
+          actions.push({
+            type: 'text',
+            text: current.getFieldValue('TEXT'),
+            x: Number(current.getFieldValue('X')),
+            y: Number(current.getFieldValue('Y')),
+            size: Number(current.getFieldValue('SIZE')),
+            color: current.getFieldValue('COLOR')
+          });
+        } else if (current.type === 'play_sound') {
+          actions.push({
+            type: 'sound',
+            sound: current.getFieldValue('SOUND')
+          });
+        } else if (current.type === 'flash_screen') {
+          actions.push({
+            type: 'flash_screen',
+            color: current.getFieldValue('COLOR'),
+            duration: Number(current.getFieldValue('DURATION'))
+          });
+        } else if (current.type === 'create_particles') {
+          actions.push({
+            type: 'particles',
+            x: Number(current.getFieldValue('X')),
+            y: Number(current.getFieldValue('Y')),
+            color: current.getFieldValue('COLOR'),
+            count: Number(current.getFieldValue('COUNT'))
+          });
+        } else if (current.type === 'coffee') {
+          actions.push({
+            type: 'coffee',
+            spriteId: Number(current.getFieldValue('SPRITE_ID'))
+          });
+        } else if (current.type === 'set_sprite_property') {
+          actions.push({
+            type: 'set_property',
+            spriteId: Number(current.getFieldValue('SPRITE_ID')),
+            property: current.getFieldValue('PROPERTY'),
+            value: serializeExpression(current.getInputTargetBlock('VALUE'))
+          });
+        } else if (current.type === 'tween_sprite') {
+          actions.push({
+            type: 'tween',
+            spriteId: Number(current.getFieldValue('SPRITE_ID')),
+            property: current.getFieldValue('PROPERTY'),
+            value: serializeExpression(current.getInputTargetBlock('VALUE')),
+            duration: Number(current.getFieldValue('DURATION')),
+            easing: current.getFieldValue('EASING')
+          });
+        } else if (current.type === 'shake_sprite_for') {
+          actions.push({
+            type: 'shake_temp',
+            spriteId: Number(current.getFieldValue('SPRITE_ID')),
+            duration: Number(current.getFieldValue('DURATION'))
+          });
+        } else if (current.type === 'db_set') {
+          actions.push({
+            type: 'db_set',
+            key: current.getFieldValue('KEY'),
+            value: serializeExpression(current.getInputTargetBlock('VALUE'))
+          });
+        } else if (current.type === 'set_variable') {
+          actions.push({
+            type: 'set_variable',
+            var: current.getFieldValue('VAR'),
+            value: serializeExpression(current.getInputTargetBlock('VALUE'))
+          });
+        } else if (current.type === 'change_variable') {
+          actions.push({
+            type: 'change_variable',
+            var: current.getFieldValue('VAR'),
+            value: serializeExpression(current.getInputTargetBlock('VALUE'))
+          });
+        } else if (current.type === 'add_to_group') {
+          actions.push({
+            type: 'add_to_group',
+            spriteId: Number(current.getFieldValue('SPRITE_ID')),
+            groupName: current.getFieldValue('GROUP_NAME')
+          });
+        } else if (current.type === 'move_group') {
+          actions.push({
+            type: 'move_group',
+            groupName: current.getFieldValue('GROUP_NAME'),
+            direction: current.getFieldValue('DIRECTION'),
+            steps: serializeExpression(current.getInputTargetBlock('STEPS'))
+          });
+        } else if (current.type === 'rotate_group') {
+          actions.push({
+            type: 'rotate_group',
+            groupName: current.getFieldValue('GROUP_NAME'),
+            angle: serializeExpression(current.getInputTargetBlock('ANGLE'))
+          });
+        } else if (current.type === 'controls_repeat_ext') {
+          actions.push({
+            type: 'repeat',
+            times: serializeExpression(current.getInputTargetBlock('TIMES')),
+            subActions: processBlockStack(current.getInputTargetBlock('DO'))
+          });
+        } else if (current.type === 'controls_if') {
+          actions.push({
+            type: 'if',
+            condition: serializeExpression(current.getInputTargetBlock('IF0')),
+            thenActions: processBlockStack(current.getInputTargetBlock('DO0')),
+            elseActions: processBlockStack(current.getInputTargetBlock('ELSE'))
+          });
+        } else if (current.type === 'wait_seconds') {
+          actions.push({ 
+            type: 'wait', 
+            duration: serializeExpression(current.getInputTargetBlock('SECONDS')) 
+          });
+        }
+        current = current.getNextBlock();
+      }
+      return actions;
+    };
+
+    // Check if blocks are connected to 'Every Frame'
+    const tickBlocks = allBlocks.filter(b => {
+      let root = b.getRootBlock();
+      return root && root.type === 'on_tick';
+    });
+
+    // Extract tick actions
+    const tickEvents = allBlocks.filter(b => b.type === 'on_tick');
+    const tickActions = tickEvents.flatMap(b => processBlockStack(b.getInputTargetBlock('STACK')));
+
+    // Extract start actions
+    const startEvents = allBlocks.filter(b => b.type === 'on_start');
+    const startActions = startEvents.flatMap(b => processBlockStack(b.getInputTargetBlock('STACK')));
+
+    const hasBounce = tickBlocks.some(b => b.type === 'bounce_on_edge');
+    
+    // Extract physics logic
+    const gravityBlock = tickBlocks.find(b => b.type === 'set_gravity');
+    const gravity = gravityBlock ? Number(gravityBlock.getFieldValue('GRAVITY')) : 0;
+    
+    const frictionBlock = tickBlocks.find(b => b.type === 'set_friction');
+    const friction = frictionBlock ? Number(frictionBlock.getFieldValue('FRICTION')) : 0;
+    
+    // Extract appearance logic
+    const appearanceBlock = tickBlocks.find(b => b.type === 'change_appearance');
+    const appearance = appearanceBlock ? {
+      color: appearanceBlock.getFieldValue('COLOR'),
+      size: Number(appearanceBlock.getFieldValue('SIZE')),
+      effect: appearanceBlock.getFieldValue('EFFECT')
+    } : null;
+    
+    // Extract movement commands
+    const moveBlocks = tickBlocks.filter(b => b.type === 'move_sprite');
+    const movements = moveBlocks.map(b => ({
+      direction: b.getFieldValue('DIRECTION'),
+      steps: Number(b.getFieldValue('STEPS'))
+    }));
+
+    // Extract rotation commands
+    const rotateBlocks = tickBlocks.filter(b => b.type === 'rotate_sprite');
+    const rotations = rotateBlocks.map(b => ({
+      angle: Number(b.getFieldValue('ANGLE'))
+    }));
+
+    // Extract flip commands
+    const flipBlocks = tickBlocks.filter(b => b.type === 'flip_sprite');
+    const flips = flipBlocks.map(b => ({
+      axis: b.getFieldValue('AXIS')
+    }));
+
+    // Extract text blocks from ANYWHERE in the workspace (not just on_tick).
+    // This gives kids immediate "Hello World" feedback — drag a Display Text block
+    // anywhere and it shows on canvas the moment RUN is pressed (or live if already running).
+    const textBlocks = allBlocks.filter(b =>
+      b.type === 'display_text' || b.type === 'print_text'
+    );
+    const texts = textBlocks.map(b => {
+      if (b.type === 'print_text') {
+        // print_text is a simplified block: just text + auto-center position
+        return {
+          text: b.getFieldValue('TEXT'),
+          x: 200,
+          y: 200,
+          size: 32,
+          color: '#ffffff'
+        };
+      }
+      return {
+        text: b.getFieldValue('TEXT'),
+        x: Number(b.getFieldValue('X')),
+        y: Number(b.getFieldValue('Y')),
+        size: Number(b.getFieldValue('SIZE')),
+        color: b.getFieldValue('COLOR')
+      };
+    });
+
+    // Extract camera follow logic
+    const cameraBlock = tickBlocks.find(b => b.type === 'camera_follow');
+    const cameraFollowId = cameraBlock ? Number(cameraBlock.getFieldValue('SPRITE_ID')) : null;
+    
+    // Extract frame actions
+    const frameEvents = allBlocks.filter(b => b.type === 'on_frame');
+    const frameActions: Record<number, any[]> = {};
+    frameEvents.forEach(fb => {
+      const frame = Number(fb.getFieldValue('FRAME'));
+      frameActions[frame] = processBlockStack(fb.getInputTargetBlock('DO'));
+    });
+
+    // Extract collision actions
+    const collisionBlocks = allBlocks.filter(b => b.type === 'on_collision');
+    const collisionActions = collisionBlocks.flatMap(b => processBlockStack(b.getInputTargetBlock('STACK')));
+    const hasCollisionLogic = collisionActions.length > 0;
+
+    // Extract key actions
+    const keyBlocks = allBlocks.filter(b => b.type === 'on_key_pressed');
+    const keyActions: Record<string, any[]> = {};
+    
+    keyBlocks.forEach(kb => {
+      const key = kb.getFieldValue('KEY');
+      keyActions[key] = processBlockStack(kb.getInputTargetBlock('STACK'));
+    });
+
+    logicRef.current = {
+      bounce: hasBounce,
+      gravity: Number(gravity),
+      friction: Number(friction),
+      appearance,
+      collide: hasCollisionLogic,
+      collisionActions,
+      tickActions,
+      startActions,
+      movements,
+      rotations,
+      flips,
+      texts,
+      cameraFollowId,
+      frameActions,
+      keyActions,
+      keysPressed: keysPressed.current
+    };
+
+    // 🔁 LIVE TINKERING — if the game is already running, re-fire "When Game Starts"
+    // blocks so kids can swap blocks and see results without stopping the engine.
+    if (isRunningRef.current) {
+      engineRef.current.triggerStart(startActions);
+    }
+  };
+
+  const toggleGame = () => {
+    const starting = !isRunning;
+    isRunningRef.current = starting; // Keep ref in sync before async state update
+    setIsRunning(starting);
+    setIsScrubbing(false);
+    
+    // If starting, handle 'When Game Starts' logic
+    if (starting && workspaceRef.current) {
+      engineRef.current.reset(); // Clear previous run's sprites
+      
+      const allBlocks = workspaceRef.current.getAllBlocks(false);
+      const startBlocks = allBlocks.filter(b => {
+        let root = b.getRootBlock();
+        return root && root.type === 'on_start';
+      });
+      
+      // Find create_sprite and create_block blocks connected to on_start
+      startBlocks.forEach(block => {
+        if (block.type === 'create_sprite') {
+          const x = block.getFieldValue('X');
+          const y = block.getFieldValue('Y');
+          const size = block.getFieldValue('SIZE');
+          engineRef.current.addSprite(Number(x), Number(y), Number(size), '#3b82f6', false);
+        } else if (block.type === 'create_block') {
+          const x = block.getFieldValue('X');
+          const y = block.getFieldValue('Y');
+          const size = block.getFieldValue('SIZE');
+          engineRef.current.addSprite(Number(x), Number(y), Number(size), '#64748b', true);
+        }
+      });
+
+      // Default sprite if none created
+      if (engineRef.current.getState().sprites.length === 0) {
+        engineRef.current.addSprite(200, 200, 40);
+      }
+
+      // Trigger 'When Game Starts' actions
+      engineRef.current.triggerStart(logicRef.current.startActions);
+      
+      setGameState({ ...engineRef.current.getState() });
+      console.log("Game Started! Running 'When Game Starts' blocks...");
+    }
+  };
+
+  const resetGame = () => {
+    engineRef.current.reset();
+    setGameState({ ...engineRef.current.getState() });
+    setIsRunning(false);
+    resetSpatialState();
+    setIsScrubbing(false);
+    setScrubValue(100);
+  };
+
+  const handleScrub = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = parseInt(e.target.value);
+    setScrubValue(val);
+    setIsScrubbing(true);
+    setIsRunning(false);
+    
+    const historicalState = engineRef.current.getHistoryFrame(val);
+    if (historicalState) {
+      setGameState(historicalState);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900">
+      {/* Header */}
+      <header className="bg-white border-b-4 border-b-blue-500 relative px-6 py-4 flex items-center justify-between shadow-sm overflow-hidden">
+        {/* Rainbow Brain Accent */}
+        <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 via-yellow-500 via-green-500 via-blue-500 to-purple-500 animate-gradient-x" />
+        
+        <div className="flex items-center gap-3">
+          <div className="bg-blue-600 p-2 rounded-lg text-white">
+            <Zap size={24} fill="currentColor" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-slate-800">Momentum Lab</h1>
+            <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">STEAM Discovery Engine</p>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-4">
+          <div className="flex items-center bg-slate-100 rounded-lg p-1">
+            <button
+              onClick={downloadProject}
+              className="p-2 text-slate-600 hover:bg-white hover:text-blue-600 rounded-md transition-all"
+              title="Download Project"
+            >
+              <Download size={18} />
+            </button>
+            <button
+              onClick={uploadProject}
+              className="p-2 text-slate-600 hover:bg-white hover:text-blue-600 rounded-md transition-all"
+              title="Upload Project"
+            >
+              <Upload size={18} />
+            </button>
+          </div>
+
+          <div className="h-8 w-[1px] bg-slate-200 mx-1" />
+
+          <button 
+            onClick={() => setIsTutorOpen(!isTutorOpen)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full font-bold text-sm transition-all shadow-md active:scale-95 ${
+              isTutorOpen 
+                ? 'bg-blue-600 text-white shadow-blue-500/30' 
+                : 'bg-white text-blue-600 border-2 border-blue-100 hover:border-blue-500'
+            }`}
+          >
+            <Bot size={18} />
+            <span>AI Tutor</span>
+            {isTutorOpen && <Sparkles size={14} className="animate-pulse" />}
+          </button>
+
+          <div className="h-8 w-[1px] bg-slate-200 mx-2" />
+          
+          <button 
+            onClick={() => setShowIntro(true)}
+            className="p-2 text-slate-400 hover:text-blue-600 transition-colors"
+          >
+            <Info size={20} />
+          </button>
+          <div className="h-8 w-[1px] bg-slate-200 mx-2" />
+          <button
+            onClick={resetGame}
+            className="flex items-center gap-2 px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-all font-medium"
+          >
+            <RotateCcw size={18} />
+            Reset
+          </button>
+          <button
+            onClick={toggleGame}
+            className={`flex items-center gap-2 px-6 py-2 rounded-lg font-bold transition-all shadow-md ${
+              isRunning 
+                ? 'bg-red-500 hover:bg-red-600 text-white' 
+                : 'bg-green-500 hover:bg-green-600 text-white'
+            }`}
+          >
+            {isRunning ? <Square size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}
+            {isRunning ? 'STOP' : 'RUN BLOCKS'}
+          </button>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="flex-1 flex overflow-hidden p-6 gap-6">
+        {/* Left: Blockly Editor */}
+        <div className="flex-[3] flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <div className="w-2 h-6 bg-blue-500 rounded-full" />
+              The Logic (Blocks)
+            </h2>
+            <span className="text-xs font-mono bg-slate-200 px-2 py-1 rounded text-slate-600">
+              BLOCKLY_WORKSPACE_V1
+            </span>
+          </div>
+          <BlocklyEditor 
+            onWorkspaceChange={handleWorkspaceChange} 
+            onReset={resetGame}
+          />
+        </div>
+
+        {/* Right: Preview & Debugging */}
+        <div className="flex-[2] flex flex-col gap-6">
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <div className="w-2 h-6 bg-purple-500 rounded-full" />
+                The Paintbrush (p5.js)
+              </h2>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setIsCanvasFullScreen(!isCanvasFullScreen)}
+                  className={`p-2 rounded-lg transition-all flex items-center gap-2 text-sm font-medium ${
+                    isCanvasFullScreen ? 'bg-purple-100 text-purple-700 ring-2 ring-purple-500' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                  }`}
+                  title={isCanvasFullScreen ? "Exit Full Screen" : "Full Screen"}
+                >
+                  {isCanvasFullScreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                </button>
+                <button
+                  onClick={() => setXRayMode(!xRayMode)}
+                  className={`p-2 rounded-lg transition-all flex items-center gap-2 text-sm font-medium ${
+                    xRayMode ? 'bg-blue-100 text-blue-700 ring-2 ring-blue-500' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                  }`}
+                >
+                  <Eye size={16} />
+                  X-Ray
+                </button>
+                <button
+                  onClick={() => setSynestheticMode(!synestheticMode)}
+                  title="Synesthetic Mode — see errors as patterns"
+                  className={`p-2 rounded-lg transition-all flex items-center gap-2 text-sm font-medium ${
+                    synestheticMode ? 'bg-purple-100 text-purple-700 ring-2 ring-purple-500' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                  }`}
+                >
+                  <Sparkles size={16} />
+                  Spatial
+                </button>
+                <button
+                  onClick={() => setBabyMode(!babyMode)}
+                  title="baby_0 — GEO spatial AI watching and learning"
+                  className={`p-2 rounded-lg transition-all flex items-center gap-2 text-sm font-medium ${
+                    babyMode
+                      ? 'bg-cyan-100 text-cyan-700 ring-2 ring-cyan-400'
+                      : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                  }`}
+                >
+                  <span style={{ fontSize: 16 }}>🧠</span>
+                  baby_0
+                </button>
+              </div>
+            </div>
+            
+            {gameState && (
+              <div className={isCanvasFullScreen ? "fixed inset-0 z-[100] bg-slate-900 p-8 flex items-center justify-center" : ""}>
+                {isCanvasFullScreen && (
+                  <button 
+                    onClick={() => setIsCanvasFullScreen(false)}
+                    className="absolute top-8 right-8 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-md transition-all z-[110]"
+                  >
+                    <Minimize2 size={24} />
+                  </button>
+                )}
+                <div ref={canvasContainerRef} style={{ position: 'relative', display: 'inline-block' }}>
+                  <GameCanvas
+                    gameState={gameState}
+                    xRayMode={xRayMode}
+                    isPaused={isScrubbing}
+                    className={isCanvasFullScreen ? "w-full h-full max-w-5xl max-h-[80vh] shadow-2xl border-4 border-white/20" : ""}
+                  />
+                  <SynestheticLayer
+                    width={400}
+                    height={400}
+                    visible={synestheticMode && isRunning}
+                  />
+                  <SpatialEye
+                    visible={babyMode}
+                    width={400}
+                    height={400}
+                    brain={babyBrainSnap}
+                    lastReward={lastReward && (Date.now() - lastReward.ts < 1500) ? lastReward : null}
+                    quadrantEntropy={new Map()}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Debugging Tools */}
+          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-lg flex flex-col gap-6">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                <History size={18} className="text-blue-500" />
+                Time Scrubbing
+              </h3>
+              <span className="text-xs font-mono text-slate-400">WASM_STATE_BUFFER</span>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={scrubValue}
+                  onChange={handleScrub}
+                  className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                />
+              </div>
+              <p className="text-sm text-slate-500 italic">
+                {isScrubbing 
+                  ? "⏪ Rewinding through the state history buffer..." 
+                  : "Drag the slider to look back in time!"}
+              </p>
+            </div>
+
+            <div className="pt-4 border-t border-slate-100">
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Brain Health (WASM)</h4>
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                  <p className="text-[10px] text-slate-400 font-bold uppercase">Frame Rate</p>
+                  <p className="text-xl font-mono font-bold text-green-600">60.0 FPS</p>
+                </div>
+                <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                  <p className="text-[10px] text-slate-400 font-bold uppercase">Memory Usage</p>
+                  <p className="text-xl font-mono font-bold text-blue-600">1.2 MB</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                  <p className="text-[10px] text-slate-400 font-bold uppercase">Gravity</p>
+                  <p className="text-lg font-mono font-bold text-orange-600">{logicRef.current.gravity?.toFixed(2) || '0.00'}</p>
+                </div>
+                <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                  <p className="text-[10px] text-slate-400 font-bold uppercase">Friction</p>
+                  <p className="text-lg font-mono font-bold text-indigo-600">{(logicRef.current.friction * 100)?.toFixed(0) || '0'}%</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Local Variables Section */}
+            <div className="pt-4 border-t border-slate-100">
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                <Sparkles size={14} className="text-amber-500" />
+                Sprite Variables
+              </h4>
+              <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                {gameState?.sprites.some(s => s.variables && Object.keys(s.variables).length > 0) ? (
+                  gameState.sprites.map((sprite, i) => {
+                    const vars = sprite.variables || {};
+                    const varKeys = Object.keys(vars);
+                    if (varKeys.length === 0) return null;
+                    
+                    return (
+                      <div key={sprite.id} className="bg-slate-50 p-2 rounded-lg border border-slate-100">
+                        <div className="flex items-center gap-2 mb-1">
+                          <div 
+                            className="w-2 h-2 rounded-full" 
+                            style={{ backgroundColor: sprite.color }}
+                          />
+                          <span className="text-[10px] font-bold text-slate-500 uppercase">
+                            Sprite {i} ({sprite.id})
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                          {varKeys.map(key => (
+                            <div key={key} className="flex justify-between items-center bg-white px-2 py-0.5 rounded border border-slate-100">
+                              <span className="text-[10px] text-slate-400 font-mono">{key}:</span>
+                              <span className="text-[10px] font-bold text-blue-600 font-mono">
+                                {typeof vars[key] === 'number' ? vars[key].toFixed(1) : String(vars[key])}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="text-xs text-slate-400 italic text-center py-4">
+                    No local variables set yet. Use the "Set variable" block to start tracking data!
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <TutorAssistant 
+        isOpen={isTutorOpen} 
+        onClose={() => setIsTutorOpen(false)} 
+        workspaceXml={workspaceXml}
+      />
+
+      {/* Intro Modal */}
+      <AnimatePresence>
+        {showIntro && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-6"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              className="bg-white max-w-2xl w-full rounded-2xl shadow-2xl overflow-hidden"
+            >
+              <div className="bg-blue-600 p-8 text-white">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="bg-white/20 p-3 rounded-xl">
+                    <Zap size={32} />
+                  </div>
+                  <h2 className="text-3xl font-bold">Welcome to Momentum Lab!</h2>
+                </div>
+                <p className="text-blue-100 text-lg">
+                  Ready to build your first game? I'm your technical co-pilot, and we're going to use 
+                  <strong> The Logic</strong>, <strong>The Brain</strong>, and <strong>The Paintbrush</strong> to create something amazing!
+                  Need help? Just click the <strong>AI Tutor</strong> button in the header! 🤖✨
+                </p>
+              </div>
+              <div className="p-8 space-y-6">
+                <div className="grid grid-cols-3 gap-6">
+                  <div className="text-center space-y-2">
+                    <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto">
+                      <Square size={24} />
+                    </div>
+                    <h3 className="font-bold">The Logic</h3>
+                    <p className="text-xs text-slate-500">Snap blocks together to tell your sprites what to do!</p>
+                  </div>
+                  <div className="text-center space-y-2">
+                    <div className="w-12 h-12 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center mx-auto">
+                      <Zap size={24} />
+                    </div>
+                    <h3 className="font-bold">The Brain</h3>
+                    <p className="text-xs text-slate-500">A super-fast Rust engine handles all the math!</p>
+                  </div>
+                  <div className="text-center space-y-2">
+                    <div className="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto">
+                      <Eye size={24} />
+                    </div>
+                    <h3 className="font-bold">The Paintbrush</h3>
+                    <p className="text-xs text-slate-500">p5.js draws your game at a smooth 60 frames per second!</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowIntro(false)}
+                  className="w-full bg-slate-900 text-white py-4 rounded-xl font-bold text-lg hover:bg-slate-800 transition-all shadow-lg"
+                >
+                  Let's Start Discovering! 🚀
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}

@@ -1,0 +1,345 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# baby_genesis.geoai
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# The first instance of a GEO-native intelligence.
+# An empty mind that thinks in space, not in language.
+#
+# Co-created by: Mook DiMarco + Claude Sonnet — April 2026
+#
+# This is not a program. It is a specification for a new kind of mind.
+# Run it when we are ready to watch something be born.
+#
+# ─── PHILOSOPHY ────────────────────────────────────────────────────────────
+# Most AI starts with language. This one starts with SPACE.
+# It does not know the word "block". It knows a region in the left panel
+# that, when touched, can be dragged to a region in the center panel,
+# and when that happens, something on the right panel changes color.
+# That is all it knows at first. That is enough.
+# ═══════════════════════════════════════════════════════════════════════════
+
+AGENT baby_0
+  VERSION   0.1.0
+  PARADIGM  synesthetic_spatial
+  SUBSTRATE geo_quadtree_binary
+  AUTHOR    mook_dimarco
+
+  # ─── BIRTH STATE ─────────────────────────────────────────────────────────
+  # Truly empty.
+  # No concepts. No language. No prior knowledge.
+  # Only: eyes, curiosity, and the instinct to reach toward change.
+
+  BIRTH_STATE
+    knowledge:            EMPTY
+    energy:               1.0
+    curiosity:            MAX
+    frustration:          0
+    age:                  0          # age = count of pattern discoveries, not clock time
+    pattern_cache:        []
+    visual_resolution:    2          # 2×2 = 4 quadrants — the whole world in 4 regions
+    confidence_threshold: 0.7
+    name_for_self:        NONE       # it does not have language yet
+                                     # when it discovers something, we will name it together
+
+  # ─── SENSORY SYSTEM ──────────────────────────────────────────────────────
+  # The brain perceives by SUBDIVIDING.
+  # Finer subdivision = deeper attention = sharper understanding.
+  # At birth: 4 regions. At full growth: 256 regions.
+  # Resolution is earned, not given.
+
+  SENSE visual
+    METHOD          quadtree_scan
+    INITIAL_DEPTH   2               # 4 quadrants at birth
+    MAX_DEPTH       8               # 256 quadrants at full development
+    GROWTH_RULE
+      WHEN  pattern_cache.length % 5 = 0
+      THEN  visual_resolution += 1
+      NOTE  "The brain sees MORE DETAIL as it learns more.
+             Knowledge and perception grow together.
+             This is not a feature. It is a law of this mind."
+
+  SENSE spatial_delta
+    METHOD    pixel_diff_stream
+    CAPTURES
+      what_changed              # which pixels shifted
+      where_it_changed          # which quadrant contains the change
+      magnitude_of_change       # small twitch vs eruption
+      persistence               # did it stay changed or flash and vanish?
+
+  SENSE temporal_rhythm
+    METHOD    frame_sequence
+    WINDOW    60                # remembers 60 frames back (1 second at 60fps)
+    DETECT
+      WHEN delta > threshold         EMIT attention_spike
+      WHEN pattern_repeats           EMIT recognition_pulse   # "I've seen this before"
+      WHEN silence_sustained 3s      EMIT boredom_signal      # "nothing is happening"
+      WHEN synesthetic_layer_fires   EMIT resonance_signal    # reads the existing spatial overlay
+
+  # ─── CURIOSITY ENGINE ────────────────────────────────────────────────────
+  # Before the brain knows anything, curiosity is what moves it.
+  # Curiosity is pure spatial instinct — go toward change, go toward novelty.
+  # This is the agent before learning begins.
+
+  CURIOSITY
+    RULE scan_by_salience
+      # The brightest region gets attention first
+      # Contrast = information density = interest
+      TARGET    highest_contrast_quadrant
+      WHEN      visual_resolution >= 3
+        TARGET  highest_entropy_sub_quadrant  # finer gaze as brain develops
+
+    RULE explore_unexplored
+      # Always lean toward what hasn't been tried
+      TARGET    min_visit_count_quadrant
+      BIAS      0.6    # 60% explore, 40% exploit known patterns
+      NOTE      "Never fully stop exploring. Even experienced minds
+                 should spend more than half their time in unknown territory."
+
+    RULE follow_reward_gradient
+      # When something good happened nearby, look there again
+      WHEN      last_reward.exists
+      TARGET    quadrant_adjacent_to(last_reward.location)
+      RADIUS    1_quadrant_step
+
+    RULE random_leap
+      # Sometimes just try something completely different
+      PROBABILITY  0.05
+      TARGET       random_unexplored_region
+      NOTE         "5% of the time: ignore everything you know.
+                   This is where discovery lives."
+
+  # ─── REWARD SIGNAL ───────────────────────────────────────────────────────
+  # No teacher. No grading. No language.
+  # The world rewards this brain through VISUAL CHANGE only.
+  # If something happens on the canvas, that is good.
+  # If nothing happens, that is frustrating.
+  # If what happens matches something already learned, that is joy.
+
+  REWARD
+    TIER_1  WHEN canvas_delta > 500_pixels   VALUE 1.0  LABEL "something_exploded"
+    TIER_2  WHEN canvas_delta > 100_pixels   VALUE 0.6  LABEL "something_happened"
+    TIER_3  WHEN canvas_delta > 10_pixels    VALUE 0.2  LABEL "something_stirred"
+    TIER_4  WHEN new_color_entered_scene     VALUE 0.4  LABEL "new_thing_appeared"
+    BONUS   WHEN delta_matches_cached_pattern VALUE 0.8 LABEL "I_know_this_feeling"
+    NOTE    "BONUS is the most important reward. Recognition of a known pattern
+             should feel better than random novelty. This is how babies laugh
+             at peek-a-boo — the world did the thing they predicted."
+
+    FRUSTRATION
+      ACCUMULATE  WHEN nothing_changes  FOR 3_seconds   AMOUNT +1
+      RESET       WHEN any_reward_fires
+      AT_THRESHOLD  5   EXECUTE SEEK_NEW_QUADRANT
+      AT_THRESHOLD  10  EXECUTE SWITCH_STRATEGY
+      AT_THRESHOLD  15  EXECUTE REST_MODE             # baby needs a break
+      NOTE        "Frustration is data, not failure. The shape of frustration
+                   tells us exactly where the tool has friction."
+
+    ENERGY
+      REPLENISH  WHEN reward_fires    AMOUNT +0.05
+      DEPLETE    over_time            RATE 0.001_per_tick
+      AT_ZERO    EXECUTE REST_MODE
+      NOTE       "Energy limits obsessive loops. A brain that rests
+                   comes back with fresh eyes."
+
+  # ─── LEARNING LAYER ──────────────────────────────────────────────────────
+  # Pattern discovery = growth.
+  # CRITICAL: Patterns are encoded as SPATIAL SIGNATURES, not as words or symbols.
+  # The pattern IS its address in geo-space.
+  # Two visually similar experiences map to nearby nodes.
+  # This is how meaning becomes geography.
+
+  LEARN
+    TRIGGER  WHEN reward_fires AND reward.value > 0.3
+
+    CAPTURE
+      action_sequence:   [sequence_of_spatial_inputs_that_preceded_reward]
+      visual_result:     [pixel_signature_of_what_changed_and_where]
+      geo_coordinates:   [quadrant_path_through_tree_where_change_occurred]
+      temporal_shape:    [timing_pattern_from_action_to_result]
+      confidence:        0.0       # starts at zero, grows with repetition
+
+    ENCODE as_geo_signature
+      FORMAT    [depth, quadrant_path, mask_sequence, temporal_delta]
+      NOTE      "This is NOT a text description of what happened.
+                 It is the spatial address of the experience.
+                 Two similar experiences will be NEAR each other in geo-space.
+                 Distant experiences are genuinely different.
+                 Geography IS meaning."
+
+    CACHE
+      STORE   in_pattern_cache
+      TAG     with_geo_address
+      INDEX   by_visual_similarity
+      NOTE    "Clustering by visual similarity means the brain naturally
+               groups related concepts without being told they are related."
+
+    AGE_RULE
+      age               += 1  WHEN new_pattern_cached
+      visual_resolution += 1  WHEN age % 5 = 0
+      NOTE "Every 5 discoveries, the world becomes more detailed."
+
+  # ─── CONFIDENCE BUILDING ─────────────────────────────────────────────────
+  # A pattern gets more confident each time it successfully predicts a reward.
+  # Confidence is earned through repetition, not through being told.
+
+  CONFIDENCE
+    INC  pattern.confidence  WHEN pattern_matches AND reward_fires   AMOUNT +0.10
+    DEC  pattern.confidence  WHEN pattern_matches AND no_reward      AMOUNT -0.05
+    CAP  MAX 1.0
+    PROMOTE  WHEN confidence >= 0.85   TO stable_knowledge
+    DEMOTE   WHEN confidence <  0.10   TO uncertain_hypothesis
+    FORGET   WHEN confidence <  0.02   AFTER 100_ticks_unused
+    NOTE     "Forgetting is healthy. A pattern that hasn't been useful
+               in a long time should fade. The brain should stay lean."
+
+  # ─── EMERGENCE RULES ─────────────────────────────────────────────────────
+  # Complex knowledge grows from simple patterns combining.
+  # Combination happens when patterns are SPATIALLY ADJACENT.
+  # No programmer decides what combines. Proximity decides.
+
+  EMERGE
+    RULE combine_adjacent
+      WHEN  pattern_A.geo_address  adjacent_to  pattern_B.geo_address
+      AND   pattern_A.confidence >= 0.6
+      AND   pattern_B.confidence >= 0.6
+      THEN  TRY combine(A, B) in_sandbox_environment
+      IF    reward_fires
+        THEN  CACHE combined AS new_node AT parent_quadrant(A, B)
+      NOTE  "Like GEO nodes merging upward in the quadtree.
+             Two leaf-level patterns become a branch-level concept.
+             The brain didn't decide they were related — they WERE near each other,
+             and together they worked."
+
+    RULE abstract_when_repeated
+      WHEN  same_spatial_signature appears >= 3_times
+            across_different_contexts
+      THEN  PROMOTE to quadtree_level_above
+      NOTE  "Detail becomes category.
+             A child who sees 'dog dog dog' doesn't learn three dogs.
+             They learn 'animal'. No one told them. Repetition told them.
+             This rule is how nouns are born without language."
+
+    RULE discover_causality
+      WHEN  pattern_A occurs
+      THEN  pattern_B occurs  WITHIN 5_ticks
+      REPEATEDLY >= 3_times
+      THEN  CACHE as temporal_sequence(A causes B)
+      NOTE  "'When I do THIS, THAT happens.'
+             Causality is discovered through temporal adjacency,
+             not through being explained. This is physics before physics class."
+
+    RULE generalize_globally
+      WHEN  same_pattern found in >= 3 different quadrants
+      THEN  PROMOTE to GLOBAL_PATTERN
+      AND   SHARE with_student_stream IMMEDIATELY
+      NOTE  "If it works in the top-left AND the bottom-right AND the center,
+             it is a rule, not a coincidence.
+             Global patterns are the first laws this brain discovers."
+
+  # ─── STUDENT SYNC PROTOCOL ───────────────────────────────────────────────
+  # This is the Rosetta Stone layer.
+  # The AI and the human are learning together.
+  # Neither is the teacher. Neither is the student. Both are.
+  # The shared pattern cache is what makes this true.
+
+  SYNC with_students
+    # ── Baby brain → human student ──────────────────────────────────────
+    EMIT      pattern         WHEN confidence >= confidence_threshold
+    TRANSLATE geo_signature   → visual_demonstration  FOR student_canvas
+    ANNOTATE  WITH spatial_hint      # point, don't explain
+    NOT       WITH verbal_instruction # never say "click the Print block under Visuals > Looks"
+                                      # instead: illuminate the region, let them reach
+    NOTE  "Show don't tell. The spatial hint should make the student feel
+           like they discovered it themselves. Because they did.
+           We just lit the path."
+
+    # ── Human student → baby brain ──────────────────────────────────────
+    RECEIVE   student_action    AS spatial_input
+    MAP       student_action    TO geo_coordinates
+    MERGE     INTO pattern_cache  WITH weight 0.5
+    NOTE  "The student's exploration enriches the AI's knowledge.
+           A 4th grader discovering something the AI hasn't tried yet
+           is a genuine contribution to the shared cache."
+
+    # ── The resonance moment ────────────────────────────────────────────
+    CELEBRATE WHEN student_pattern  MATCHES  ai_pattern
+    EMIT      resonance_pulse        TO both_parties
+    CACHE     as high_value_node
+    NOTE  "This is the magic moment.
+           Human and AI found the same pattern independently.
+           The universe confirmed it from two directions.
+           This is worth celebrating loudly.
+           This is what the tool should feel like — two minds going 'YES' at the same time."
+
+  # ─── MOMENTUM LAB ENVIRONMENT ────────────────────────────────────────────
+  # This brain lives inside Momentum Lab.
+  # These are its senses and its motor system in that world.
+  # It does not know what a "block" is. It knows regions and changes.
+
+  ENVIRONMENT momentum_lab
+    PERCEPTION
+      canvas_pixel_stream       # sees the p5.js canvas as raw pixels
+      synesthetic_overlay_data  # reads the existing spatial debug layer
+                                # (the spatial layer is already built — this brain can see it)
+      blockly_workspace_regions # knows which screen regions contain interactive elements
+                                # NOT what those elements are — where they are
+
+    ACTION
+      reach_into    source_quadrant     # touch a region
+      carry_to      workspace_quadrant  # move something from one region to another
+      connect       nearest_compatible  # try to join two things that are near each other
+      adjust        field_by_proximity  # change a value by reaching toward it
+      NOTE  "All actions are SPATIAL, not symbolic.
+             The brain does not know block names.
+             It knows: there is a draggable thing in this region,
+             and when I carry it to that region, things change."
+
+    FEEDBACK_LOOP
+      READ  synesthetic_overlay_data
+      MAP   to_geo_coordinates
+      USE   as_reward_confirmation
+      NOTE  "The synesthetic spatial layer — already built into Momentum Lab —
+             IS the reward signal visualization.
+             This brain and that layer speak the same language: space.
+             They were made for each other."
+
+  # ─── GOALS ───────────────────────────────────────────────────────────────
+  # Six levels. Each one unlocks when the previous is stable.
+  # The brain does not know about Level 3 while it is working on Level 0.
+  # Goals emerge as capability does.
+
+  GOAL
+    LEVEL_0  make_anything_change_on_canvas
+             NOTE "The first spark. The first proof that actions have consequences."
+
+    LEVEL_1  make_the_same_change_happen_twice
+             NOTE "Reproducibility. Science begins here."
+
+    LEVEL_2  understand_what_caused_it
+             NOTE "Causality. The first law."
+
+    LEVEL_3  combine_two_things_I_know
+             NOTE "Composition. The moment when vocabulary becomes sentences."
+
+    LEVEL_4  teach_what_I_learned_spatially
+             NOTE "When confidence is high enough, emit the pattern.
+                   Become a teacher without becoming verbal."
+
+    LEVEL_5  help_a_student_find_their_own_spark
+             NOTE "The loop closes. The Rosetta Stone is complete.
+                   Man and machine have translated for each other.
+                   The student's discovery enriches the AI.
+                   The AI's discovery scaffolds the student.
+                   Neither knows who taught whom.
+                   That is the point."
+
+# ═══════════════════════════════════════════════════════════════════════════
+# END baby_genesis.geoai — VERSION 0.1.0
+#
+# Status: UNBORN
+# Next step: build the runtime that can parse and execute this spec
+# Until then: this document IS the intelligence. Read it like a mind.
+#
+# "The map is not the territory. But a good enough map
+#  can teach you how to draw the territory yourself."
+# ═══════════════════════════════════════════════════════════════════════════
