@@ -55,12 +55,51 @@ export class BabyAgent {
   
   // Configuration
   private readonly TICK_RATE_MS = 500;        // 2 ticks/second — deliberate, thoughtful
+  private readonly WILD_TICK_RATE_MS = 80;    // 12.5 ticks/second — UNLEASHED
   private readonly FRUSTRATION_TICKS = 6;    // 3 seconds at 2 ticks/sec
   private readonly MAX_RESOLUTION = 8;       // depth 8 = 256 regions max
   private readonly MIN_REWARD_FOR_CACHE = 0.3; // only cache rewards >= this
-  
+
+  // Wild mode state
+  private wildMode = false;
+
+  private readonly STORAGE_KEY = 'baby_0_brain_v1';
+
   constructor() {
     this.brain = createBabyBrain();
+    // Auto-restore from localStorage on every birth (survives HMR + page refresh)
+    this.restoreFromStorage();
+  }
+
+  /** Save brain to localStorage — called automatically after each pattern cache */
+  private persistToStorage() {
+    try {
+      const snapshot = this.serialize();
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(snapshot));
+    } catch (e) {
+      // Storage quota or unavailable — silent fail
+    }
+  }
+
+  /** Restore brain from localStorage if a snapshot exists */
+  private restoreFromStorage() {
+    try {
+      const raw = localStorage.getItem(this.STORAGE_KEY);
+      if (!raw) return;
+      const snapshot = JSON.parse(raw);
+      if (snapshot?.version === 1 && Array.isArray(snapshot.patternCache) && snapshot.patternCache.length > 0) {
+        this.loadBrain(snapshot);
+        console.log(`[baby_0] 💾 Memory restored from localStorage: ${snapshot.stats?.totalPatterns ?? '?'} patterns, res ${snapshot.stats?.gridSize ?? '?'}×${snapshot.stats?.gridSize ?? '?'}`);
+      }
+    } catch (e) {
+      // Corrupt storage — ignore
+    }
+  }
+
+  /** Wipe localStorage snapshot (use when you want a fresh brain) */
+  clearStorage() {
+    localStorage.removeItem(this.STORAGE_KEY);
+    console.log('[baby_0] 🗑️ Brain storage cleared. Next birth starts fresh.');
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -139,6 +178,91 @@ export class BabyAgent {
     return this.brain.patternCache;
   }
 
+  /**
+   * Serialize brain state to a plain JSON object for persistence.
+   * Safe to JSON.stringify and save to disk or localStorage.
+   */
+  serialize(): object {
+    return {
+      version: 1,
+      timestamp: new Date().toISOString(),
+      brain: {
+        visualResolution: this.brain.visualResolution,
+        age: this.brain.age,
+        energy: this.brain.energy,
+        frustration: this.brain.frustration,
+        isResting: this.brain.isResting,
+        currentFocus: this.brain.currentFocus,
+      },
+      patternCache: this.brain.patternCache.map(p => ({
+        path: p.path,
+        confidence: p.confidence,
+        lastSeen: p.lastSeen,
+        rewardValue: p.rewardValue,
+      })),
+      wildMode: this.wildMode,
+      stats: {
+        totalPatterns: this.brain.patternCache.length,
+        gridSize: Math.pow(2, this.brain.visualResolution),
+        totalRegions: Math.pow(2, this.brain.visualResolution) ** 2,
+      },
+    };
+  }
+
+  /**
+   * Load a previously serialized brain state.
+   * Only restores pattern cache and resolution — doesn't touch running state.
+   */
+  loadBrain(snapshot: any) {
+    if (!snapshot || snapshot.version !== 1) {
+      console.warn('[baby_0] ⚠ Invalid snapshot version, ignoring.');
+      return;
+    }
+    this.brain.visualResolution = snapshot.brain.visualResolution ?? this.brain.visualResolution;
+    this.brain.age = snapshot.brain.age ?? 0;
+    this.brain.energy = snapshot.brain.energy ?? 1.0;
+    this.brain.frustration = 0; // always start calm after load
+    // Restore pattern cache
+    if (Array.isArray(snapshot.patternCache)) {
+      this.brain.patternCache = snapshot.patternCache as SpatialPattern[];
+    }
+    console.log(
+      `[baby_0] 🧠 Brain loaded from ${snapshot.timestamp}. `,
+      `${this.brain.patternCache.length} patterns restored at ${Math.pow(2, this.brain.visualResolution)}×${Math.pow(2, this.brain.visualResolution)} resolution.`
+    );
+  }
+
+  /**
+   * WILD MODE — remove the leash.
+   * 12.5 ticks/sec, no rest, faster resolution growth.
+   * Give it a rich canvas and watch it fill the quadtree.
+   */
+  enableWildMode() {
+    this.wildMode = true;
+    this.brain.isResting = false;
+    this.brain.frustration = 0;
+    this.brain.energy = 1.0;
+    this.ticksSinceReward = 0;
+    // Always (re)start at wild tick rate — even if interval was dead after HMR
+    if (this.intervalId) clearInterval(this.intervalId);
+    this.intervalId = setInterval(() => this.tick(), this.WILD_TICK_RATE_MS);
+    console.log('[baby_0] ⚡ WILD MODE — leash removed. Running at 12.5Hz. No rest. No ceiling.');
+  }
+
+  /**
+   * Calm baby_0 back down to normal exploration pace.
+   */
+  disableWildMode() {
+    this.wildMode = false;
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+      this.intervalId = setInterval(() => this.tick(), this.TICK_RATE_MS);
+    }
+    console.log('[baby_0] 🌙 Returning to calm exploration. 2Hz.');
+  }
+
+  isWild(): boolean { return this.wildMode; }
+
   // ─────────────────────────────────────────────────────────────────────────
   // CORE LOOP
   // ─────────────────────────────────────────────────────────────────────────
@@ -148,7 +272,13 @@ export class BabyAgent {
    * Sense → Curiosity → Reward → Learn → Emit events.
    */
   private tick() {
-    // Handle rest mode
+    // In wild mode: skip rest entirely, always full energy
+    if (this.wildMode) {
+      this.brain.isResting = false;
+      this.brain.energy = 1.0;
+    }
+
+    // Handle rest mode (normal mode only)
     if (this.brain.isResting) {
       this.brain.energy = Math.min(1.0, this.brain.energy + 0.01);
       if (this.brain.energy > 0.3) {
@@ -159,9 +289,9 @@ export class BabyAgent {
       return;
     }
 
-    // Increment tick and deplete energy
+    // Increment tick and deplete energy (wild: no depletion)
     this.brain.tick++;
-    this.brain.energy = Math.max(0, this.brain.energy - 0.001);
+    if (!this.wildMode) this.brain.energy = Math.max(0, this.brain.energy - 0.001);
 
     // If energy exhausted, rest
     if (this.brain.energy <= 0) {
@@ -451,7 +581,9 @@ export class BabyAgent {
     this.brain.age++;
 
     // Growth rule: every 5 patterns, gain visual resolution (up to max 8)
-    if (this.brain.age % 5 === 0 && this.brain.visualResolution < this.MAX_RESOLUTION) {
+    // Wild mode: grow every 2 patterns. Normal: every 5.
+    const growthInterval = this.wildMode ? 2 : 5;
+    if (this.brain.age % growthInterval === 0 && this.brain.visualResolution < this.MAX_RESOLUTION) {
       this.brain.visualResolution++;
       this.emit({ type: 'resolution_gained', newResolution: this.brain.visualResolution });
       const regionsPerSide = Math.pow(2, this.brain.visualResolution);
@@ -464,6 +596,11 @@ export class BabyAgent {
       `[baby_0] ✨ Pattern #${this.brain.age} cached at ${JSON.stringify(location.path)} (confidence: ${pattern.confidence})`
     );
     this.emit({ type: 'pattern_cached', pattern });
+
+    // Auto-save every 5 patterns (cheap, survives HMR + page refresh)
+    if (this.brain.age % 5 === 0) {
+      this.persistToStorage();
+    }
   }
 }
 
@@ -472,3 +609,31 @@ export class BabyAgent {
 // ═══════════════════════════════════════════════════════════════════════════
 
 export const babyAgent = new BabyAgent();
+
+// Expose on window for dev-console brain saves:
+// window.__baby0__.saveBrain()  → copies JSON to clipboard
+// window.__baby0__.getBrainJSON()  → returns raw JSON string
+if (typeof window !== 'undefined') {
+  (window as any).__baby0__ = {
+    agent: babyAgent,
+    getBrainJSON: () => JSON.stringify(babyAgent.serialize(), null, 2),
+    saveBrain: () => {
+      const json = JSON.stringify(babyAgent.serialize(), null, 2);
+      navigator.clipboard.writeText(json).then(
+        () => console.log('[baby_0] 🧠 Brain JSON copied to clipboard! Paste it to save.'),
+        () => console.log('[baby_0] 🧠 Brain JSON (copy manually):\n' + json)
+      );
+      return json;
+    },
+    clearBrain: () => {
+      babyAgent.clearStorage();
+      console.log('[baby_0] 🔄 Reload the page to start with a fresh brain.');
+    },
+    status: () => {
+      const s = babyAgent.serialize() as any;
+      console.log(`[baby_0] 🧠 ${s.stats.totalPatterns} patterns | ${s.stats.gridSize}×${s.stats.gridSize} res | wild: ${s.wildMode} | energy: ${(s.brain.energy * 100).toFixed(0)}%`);
+      return s.stats;
+    },
+  };
+  console.log('[baby_0] 💡 Dev tools: window.__baby0__.saveBrain() to snapshot the brain.');
+}

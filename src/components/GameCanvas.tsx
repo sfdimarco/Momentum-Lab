@@ -6,6 +6,7 @@ interface GameCanvasProps {
   gameState: GameState;
   xRayMode: boolean;
   isPaused: boolean;
+  wildAnimation?: boolean; // 🌊 Perlin noise color field — food for baby_0
   className?: string;
 }
 
@@ -16,7 +17,7 @@ interface GameCanvasProps {
 //  draw() closure never goes stale. Without this, React destroys and
 //  recreates p5 every frame (60x/sec), making Blockly unusable during run.
 // ─────────────────────────────────────────────────────────────────────────────
-const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, xRayMode, isPaused, className }) => {
+const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, xRayMode, isPaused, wildAnimation, className }) => {
   const canvasRef     = useRef<HTMLDivElement>(null);
   const p5Instance    = useRef<p5 | null>(null);
 
@@ -24,10 +25,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, xRayMode, isPaused, 
   const gameStateRef  = useRef(gameState);
   const xRayRef       = useRef(xRayMode);
   const isPausedRef   = useRef(isPaused);
+  const wildRef       = useRef(wildAnimation ?? false);
 
-  useEffect(() => { gameStateRef.current = gameState; },  [gameState]);
-  useEffect(() => { xRayRef.current      = xRayMode;  },  [xRayMode]);
-  useEffect(() => { isPausedRef.current  = isPaused;  },  [isPaused]);
+  useEffect(() => { gameStateRef.current = gameState; },       [gameState]);
+  useEffect(() => { xRayRef.current      = xRayMode;  },       [xRayMode]);
+  useEffect(() => { isPausedRef.current  = isPaused;  },       [isPaused]);
+  useEffect(() => { wildRef.current      = wildAnimation ?? false; }, [wildAnimation]);
 
   // Create p5 ONCE — never destroy unless component unmounts
   useEffect(() => {
@@ -45,6 +48,27 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, xRayMode, isPaused, 
         const paused = isPausedRef.current;
 
         p.background(15, 23, 42); // Slate-900
+
+        // ── 🌊 WILD CANVAS — Perlin noise color field for baby_0 to eat ──
+        if (wildRef.current) {
+          const t = p.frameCount * 0.025;           // fast enough to see change
+          const blockSize = 20;                      // 20×20 grid = 400 regions
+          p.noStroke();
+          p.colorMode(p.HSB, 360, 100, 100, 100);
+          for (let x = 0; x < 400; x += blockSize) {
+            for (let y = 0; y < 400; y += blockSize) {
+              const n  = p.noise(x * 0.018 + t * 0.5, y * 0.018 + t * 0.3, t * 0.2);
+              const n2 = p.noise(x * 0.025 + t * 0.4, y * 0.025 + t * 0.7);
+              // Full hue range + spatial offset so each corner is different
+              const hue = (n * 360 + (x * 0.6) + (y * 0.3) + t * 22) % 360;
+              const sat = 70 + n2 * 30;              // rich saturation
+              const bri = 65 + n * 30;               // bright but not blown out
+              p.fill(hue, sat, bri, 100);
+              p.rect(x, y, blockSize, blockSize);
+            }
+          }
+          p.colorMode(p.RGB, 255, 255, 255, 255); // restore
+        }
 
         p.push();
         // Apply Camera Offset
