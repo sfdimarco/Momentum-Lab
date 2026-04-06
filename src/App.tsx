@@ -132,6 +132,9 @@ export default function App() {
   }, []);
 
   // ── baby_0 lifecycle ─────────────────────────────────────────────────────
+  // wildMode is a dep so that if both buttons are clicked together (batched
+  // state update), this effect re-runs and calls enable/disableWildMode
+  // in the same pass — avoiding the "interval killed by cleanup" race.
   useEffect(() => {
     if (!babyMode) {
       babyAgent.stop();
@@ -153,7 +156,6 @@ export default function App() {
       if (event.type === 'reward_fired') {
         setLastReward({ quadrant: event.quadrant as any, value: event.value, ts: Date.now() });
       }
-      // Sync brain snapshot on every event (cheap — events are 2/sec)
       setBabyBrainSnap({
         visualResolution: b.visualResolution,
         currentFocus: b.currentFocus as any,
@@ -163,25 +165,25 @@ export default function App() {
       });
     });
 
-    babyAgent.start();
-    console.log('[baby_0] 👁️ Watching Momentum Lab...');
+    // Start (or re-sync wild state) atomically
+    if (wildMode) {
+      babyAgent.enableWildMode();
+    } else {
+      babyAgent.start();
+    }
+    console.log(`[baby_0] 👁️ Watching. wild=${wildMode}`);
 
     return () => {
       clearTimeout(t);
       unsub();
-      babyAgent.stop();
+      // Only fully stop when babyMode goes false — don't stop on wildMode toggle
+      if (!babyMode) babyAgent.stop();
     };
-  }, [babyMode]);
+  }, [babyMode, wildMode]);
 
-  // ── wild mode lifecycle (baby_0) ─────────────────────────────────────────
-  useEffect(() => {
-    if (!babyMode) return; // baby must be awake first
-    if (wildMode) {
-      babyAgent.enableWildMode();
-    } else {
-      babyAgent.disableWildMode();
-    }
-  }, [wildMode, babyMode]);
+  // Wild mode is handled inside the babyMode/baby1Mode effects (deps include
+  // wildMode and wild1Mode) — no separate effect needed. The unified effects
+  // call enable/disableWildMode atomically on every state change.
 
   // ── baby_1 lifecycle ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -211,25 +213,19 @@ export default function App() {
       });
     });
 
-    baby1Agent.start();
-    console.log('[baby_1] 🧬 Divergent explorer awakened. Watching Momentum Lab...');
+    if (wild1Mode) {
+      baby1Agent.enableWildMode();
+    } else {
+      baby1Agent.start();
+    }
+    console.log(`[baby_1] 🧬 Divergent explorer awakened. wild=${wild1Mode}`);
 
     return () => {
       clearTimeout(t);
       unsub();
-      baby1Agent.stop();
+      if (!baby1Mode) baby1Agent.stop();
     };
-  }, [baby1Mode]);
-
-  // ── wild mode lifecycle (baby_1) ─────────────────────────────────────────
-  useEffect(() => {
-    if (!baby1Mode) return;
-    if (wild1Mode) {
-      baby1Agent.enableWildMode();
-    } else {
-      baby1Agent.disableWildMode();
-    }
-  }, [wild1Mode, baby1Mode]);
+  }, [baby1Mode, wild1Mode]);
 
   useEffect(() => {
     let interval: any;
