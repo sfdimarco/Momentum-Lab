@@ -21,6 +21,7 @@ import type { StrokeResult } from './geoai/stroke-interpreter';
 import GEOPlayground from './components/GEOPlayground';
 import { sketchToGEO, fileToBase64 } from './geoai/sketch-interpreter';
 import type { SketchGEOResult } from './geoai/sketch-interpreter';
+import DogBabyMode from './components/DogBabyMode';
 
 export default function App() {
   const [gameState, setGameState] = useState<GameState | null>(null);
@@ -75,6 +76,9 @@ export default function App() {
   } | null>(null);
 
   const canvasContainerRef = useRef<HTMLDivElement>(null);
+
+  // ── Dog/Baby Mode — universal GEO player interface ────────────────────────
+  const [dogBabyMode, setDogBabyMode] = useState(false);
 
   // ── Draw Mode — shared tactile canvas ────────────────────────────────────
   const [drawMode, setDrawMode] = useState(false);
@@ -1123,6 +1127,15 @@ export default function App() {
                   <span style={{ fontSize: 16 }}>{sketchInterpreting ? '⏳' : '🎨'}</span>
                   {sketchInterpreting ? 'Reading…' : 'Sketch'}
                 </button>
+                {/* ── Dog / Baby Mode — universal GEO player ────────────── */}
+                <button
+                  onClick={() => setDogBabyMode(true)}
+                  title="🐕 Dog·Baby Mode — big buttons for Otis, babies, and anyone who speaks in patterns"
+                  className="p-2 rounded-lg transition-all flex items-center gap-2 text-sm font-bold bg-slate-200 text-slate-500 hover:bg-amber-50 hover:text-amber-600"
+                >
+                  <span style={{ fontSize: 16 }}>🐕</span>
+                  Play
+                </button>
               </div>
             </div>
             
@@ -1519,6 +1532,14 @@ export default function App() {
 
       {/* Intro Modal */}
       <AnimatePresence>
+        {/* ── Dog / Baby Mode — full-screen universal player overlay ───── */}
+        <DogBabyMode
+          active={dogBabyMode}
+          agent={babyAgent}
+          agent2={baby1Agent}
+          onClose={() => setDogBabyMode(false)}
+        />
+
         {showIntro && (
           <motion.div 
             initial={{ opacity: 0 }}
