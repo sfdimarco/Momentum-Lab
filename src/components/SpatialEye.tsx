@@ -30,6 +30,26 @@ export interface PatternLockEvent {
   ts: number;
 }
 
+/** Phase A: Cyan State — a pattern just got promoted to the Librarian's archive */
+export interface CyanPromotionEvent {
+  path: string[];
+  depth: number;
+  loopFamily: string;
+  codeHint: string | null;
+  ts: number;
+}
+
+/**
+ * Phase C: Guide Mode — the Librarian draws a path from current focus → nearest library beacon.
+ * No text. The line IS the direction. The destination IS the answer.
+ */
+export interface GuideTarget {
+  fromPath: string[];   // current focus quadrant path
+  toPath: string[];     // nearest library entry address
+  family: string;       // loop family of the destination (for color)
+  similarity: number;   // LCS similarity score (0-1)
+}
+
 interface SpatialEyeProps {
   visible: boolean;
   width: number;
@@ -41,11 +61,17 @@ interface SpatialEyeProps {
     frustration: number;
     energy: number;
     patternCache: Array<{ geoAddress: { depth: number; path: string[] }; confidence: number }>;
+    /** Phase A: Librarian's archive — permanent cyan bookmarks */
+    libraryCache?: Array<{ address: string[]; depth: number; loopFamily: string }>;
   };
   lastReward: { quadrant: { depth: number; path: string[] }; value: number } | null;
   quadrantEntropy: Map<string, number>;
   /** Flash: pattern just crossed the 0.7 pink threshold — fire a starburst */
   lastLock?: PatternLockEvent | null;
+  /** Flash: pattern just crossed the 0.9 CYAN STATE threshold — Librarian files it */
+  lastCyanPromotion?: CyanPromotionEvent | null;
+  /** Phase C: Guide Mode — active when frustration ≥ 10 and library has entries */
+  guideTarget?: GuideTarget | null;
 }
 
 // Synesthetic color palette
@@ -69,6 +95,8 @@ const SpatialEye: React.FC<SpatialEyeProps> = ({
   lastReward,
   quadrantEntropy,
   lastLock = null,
+  lastCyanPromotion = null,
+  guideTarget = null,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const frameIdRef = useRef<number | null>(null);
@@ -78,6 +106,10 @@ const SpatialEye: React.FC<SpatialEyeProps> = ({
   const prevResolutionRef = useRef<number>(brain.visualResolution);
   const lastLockRef = useRef<PatternLockEvent | null>(null);
   const lastLockTimeRef = useRef<number | null>(null);
+  const lastCyanRef = useRef<CyanPromotionEvent | null>(null);
+  const lastCyanTimeRef = useRef<number | null>(null);
+  // Phase C: Guide Mode ref — updated without re-running animation loop
+  const guideTargetRef = useRef<GuideTarget | null>(null);
 
   // Refs for animation loop to avoid stale closures
   const brainRef = useRef(brain);
@@ -116,6 +148,19 @@ const SpatialEye: React.FC<SpatialEyeProps> = ({
       lastLockTimeRef.current = Date.now();
     }
   }, [lastLock]);
+
+  // Track cyan promotion events (Phase A: Sisyphus & Librarian)
+  useEffect(() => {
+    if (lastCyanPromotion && lastCyanPromotion !== lastCyanRef.current) {
+      lastCyanRef.current = lastCyanPromotion;
+      lastCyanTimeRef.current = Date.now();
+    }
+  }, [lastCyanPromotion]);
+
+  // Phase C: Sync guide target to ref — no animation loop restart needed
+  useEffect(() => {
+    guideTargetRef.current = guideTarget;
+  }, [guideTarget]);
 
   // Detect resolution changes
   useEffect(() => {
@@ -348,6 +393,176 @@ const SpatialEye: React.FC<SpatialEyeProps> = ({
             ctx.textAlign = 'left';
           }
         }
+      }
+
+      // ── 3c. CYAN STATE FLASH — Librarian files a pattern ──────────
+      // Fires when confidence crosses 0.9 — the Aha! moment.
+      // Slower, cooler, more deliberate than the pink starburst.
+      // The canvas briefly dims; a cyan ring expands outward; it leaves a bookmark.
+      if (lastCyanRef.current && lastCyanTimeRef.current !== null) {
+        const cyanAge = now - lastCyanTimeRef.current;
+        const cyanDuration = 3000; // 3 seconds — slower and more deliberate than pink
+
+        if (cyanAge < cyanDuration) {
+          const cyanProgress = cyanAge / cyanDuration;
+          const cyanAlpha = Math.pow(1 - cyanProgress, 1.2);
+
+          const cyanRect = getQuadrantRect(lastCyanRef.current.path, width, height);
+          const cx = cyanRect.x + cyanRect.w / 2;
+          const cy = cyanRect.y + cyanRect.h / 2;
+
+          // Whole-canvas dim — the Librarian pausing to file (first 500ms only)
+          if (cyanAge < 500) {
+            const dimAlpha = (1 - cyanAge / 500) * 0.35;
+            ctx.fillStyle = `rgba(0, 0, 0, ${dimAlpha})`;
+            ctx.fillRect(0, 0, width, height);
+          }
+
+          // Expanding outer ring (slow, deliberate)
+          const r1 = 8 + cyanProgress * 110;
+          ctx.strokeStyle = `rgba(0, 255, 255, ${cyanAlpha * 0.9})`;
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.arc(cx, cy, r1, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // Inner tighter ring (medium speed)
+          const r2 = 8 + cyanProgress * 55;
+          ctx.strokeStyle = `rgba(0, 255, 255, ${cyanAlpha * 0.5})`;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(cx, cy, r2, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // Cyan fill over the promoted quadrant
+          ctx.fillStyle = `rgba(0, 255, 255, ${cyanAlpha * 0.12})`;
+          ctx.fillRect(cyanRect.x, cyanRect.y, cyanRect.w, cyanRect.h);
+
+          // Family + hint label (briefly, while it's fresh)
+          if (cyanProgress < 0.5) {
+            const labelAlpha = 1 - cyanProgress / 0.5;
+            ctx.font = `bold 9px monospace`;
+            ctx.fillStyle = `rgba(0, 255, 255, ${labelAlpha})`;
+            ctx.textAlign = 'center';
+            ctx.fillText(`🩵 ${lastCyanRef.current.loopFamily}`, cx, cyanRect.y - 12);
+            if (lastCyanRef.current.codeHint) {
+              ctx.font = `8px monospace`;
+              ctx.fillStyle = `rgba(0, 255, 255, ${labelAlpha * 0.7})`;
+              // Truncate hint if too long
+              const hint = lastCyanRef.current.codeHint.slice(0, 28);
+              ctx.fillText(hint, cx, cyanRect.y - 3);
+            }
+            ctx.textAlign = 'left';
+          }
+        }
+      }
+
+      // ── 3d. LIBRARY BOOKMARKS — permanent faint cyan marks ─────────
+      // Every entry in the Librarian's archive leaves a soft cyan trace.
+      // These are quieter than the cache dots — the permanent record.
+      if (curBrain.libraryCache && curBrain.libraryCache.length > 0) {
+        for (const entry of curBrain.libraryCache) {
+          if (entry.depth === curBrain.visualResolution) {
+            const libRect = getQuadrantRect(entry.address, width, height);
+            const cx = libRect.x + libRect.w / 2;
+            const cy = libRect.y + libRect.h / 2;
+
+            // Permanent faint cyan border on the quadrant — the bookmark
+            ctx.strokeStyle = 'rgba(0, 255, 255, 0.35)';
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(libRect.x + 2, libRect.y + 2, libRect.w - 4, libRect.h - 4);
+
+            // Small cyan diamond at center — the Librarian's mark
+            ctx.fillStyle = 'rgba(0, 255, 255, 0.6)';
+            ctx.shadowColor = '#00ffff';
+            ctx.shadowBlur = 6;
+            ctx.beginPath();
+            ctx.moveTo(cx, cy - 4);      // top
+            ctx.lineTo(cx + 3, cy);      // right
+            ctx.lineTo(cx, cy + 4);      // bottom
+            ctx.lineTo(cx - 3, cy);      // left
+            ctx.closePath();
+            ctx.fill();
+            ctx.shadowColor = 'transparent';
+          }
+        }
+      }
+
+      // ── 3e. GUIDE MODE — the Librarian draws a path ───────────────
+      // Phase C: When frustration ≥ 10 and library has a close match,
+      // App.tsx sets guideTarget and the Librarian draws a glowing line
+      // from the current focus quadrant → the nearest library beacon.
+      // No text. The line IS the direction. The bloom IS the answer.
+      if (guideTargetRef.current) {
+        const guide = guideTargetRef.current;
+        const fromRect = getQuadrantRect(guide.fromPath, width, height);
+        const toRect   = getQuadrantRect(guide.toPath,   width, height);
+        const fromCx = fromRect.x + fromRect.w / 2;
+        const fromCy = fromRect.y + fromRect.h / 2;
+        const toCx   = toRect.x   + toRect.w   / 2;
+        const toCy   = toRect.y   + toRect.h   / 2;
+
+        // Subtle canvas dim — the Librarian clearing the stage
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
+        ctx.fillRect(0, 0, width, height);
+
+        // Glowing animated dashed guide line (marching ants → destination)
+        const dashSpeed = elapsed * 0.06;
+        ctx.save();
+        ctx.shadowColor = '#00ffff';
+        ctx.shadowBlur = 10;
+        ctx.strokeStyle = 'rgba(0, 255, 255, 0.85)';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([7, 5]);
+        ctx.lineDashOffset = -dashSpeed; // ants march toward destination
+        ctx.beginPath();
+        ctx.moveTo(fromCx, fromCy);
+        ctx.lineTo(toCx, toCy);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+
+        // Origin ring — "you are here" marker at current focus
+        const originPulse = 0.65 + 0.35 * Math.sin(elapsed * 0.005);
+        ctx.strokeStyle = `rgba(255, 255, 255, ${originPulse})`;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(fromCx, fromCy, 8, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Destination bloom — expanding rings pulse at the beacon
+        const bloomT1 = ((elapsed * 0.0015) % 1);
+        const bloomT2 = ((elapsed * 0.0015 + 0.4) % 1); // offset second ring
+        const bloom1R = 8  + bloomT1 * 28;
+        const bloom2R = 8  + bloomT2 * 28;
+        const bloom1A = (1 - bloomT1) * 0.7;
+        const bloom2A = (1 - bloomT2) * 0.4;
+
+        ctx.strokeStyle = `rgba(0, 255, 255, ${bloom1A})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(toCx, toCy, bloom1R, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = `rgba(0, 255, 255, ${bloom2A})`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(toCx, toCy, bloom2R, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Destination fill — destination quadrant lit in cyan
+        ctx.fillStyle = 'rgba(0, 255, 255, 0.12)';
+        ctx.fillRect(toRect.x, toRect.y, toRect.w, toRect.h);
+
+        // Destination center dot — the beacon itself
+        ctx.save();
+        ctx.shadowColor = '#00ffff';
+        ctx.shadowBlur = 18;
+        ctx.fillStyle = 'rgba(0, 255, 255, 0.95)';
+        ctx.beginPath();
+        ctx.arc(toCx, toCy, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
       }
 
       // ── 4. PATTERN CACHE DOTS ──────────────────────────────────────

@@ -17,6 +17,8 @@ import {
   SpatialPattern,
   QuadrantAddress,
   PatternCache,
+  LibraryEntry,
+  GEOFamily,
   createBabyBrain,
   addressToKey,
   getQuadrantsAtDepth,
@@ -33,6 +35,9 @@ export type BabyAgentEvent =
   | { type: 'reward_fired'; quadrant: QuadrantAddress; value: number; tier: string }
   | { type: 'pattern_cached'; pattern: SpatialPattern }
   | { type: 'pattern_reinforced'; pattern: SpatialPattern; prevConfidence: number }
+  | { type: 'cyan_promoted'; entry: LibraryEntry }   // 🩵 Phase A: Cyan State — Aha! moment
+  | { type: 'hint_evolved'; entry: LibraryEntry; prevHint: string | null; tier: 'apprentice' | 'journeyman' | 'master' }  // 📗 Phase B: code hint matures
+  | { type: 'guide_available'; fromPath: string[]; toEntry: LibraryEntry; similarity: number }  // 🧭 Phase C: Guide Mode — the Librarian draws a path
   | { type: 'frustration_update'; level: number }
   | { type: 'resolution_gained'; newResolution: number }
   | { type: 'energy_update'; level: number }
@@ -112,6 +117,124 @@ export const BABY_1_CONFIG: BabyConfig = {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
+// PHASE A — LOOP FAMILY INFERENCE
+// The shape of a spatial path IS the type of code construct it maps to.
+// Called once per pattern promotion — turns geometry into grammar.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Infer the GEO loop family from a quadtree path.
+ *
+ * Algorithm: count unique quadrants in the address path.
+ *   0 or empty → GATE_OFF  (no movement — null state)
+ *   1 unique   → Y_LOOP    (single quadrant rotating — linear flow)
+ *   2 unique:
+ *     adjacent (TL+TR, TR+BR, BR+BL, BL+TL) → X_LOOP (if/else branch)
+ *     diagonal (TL+BR, TR+BL)               → DIAG_LOOP (recursion/callback)
+ *   3 unique   → Z_LOOP    (three-quadrant sweep — loop construct)
+ *   4 unique   → GATE_ON   (all quadrants — full function definition)
+ */
+function inferLoopFamily(path: string[]): GEOFamily {
+  if (path.length === 0) return 'GATE_OFF';
+
+  const unique = new Set(path);
+
+  if (unique.size <= 1) return path.length === 0 ? 'GATE_OFF' : 'Y_LOOP';
+
+  if (unique.size === 2) {
+    const [a, b] = [...unique];
+    const diagonal =
+      (a === 'TL' && b === 'BR') || (a === 'BR' && b === 'TL') ||
+      (a === 'TR' && b === 'BL') || (a === 'BL' && b === 'TR');
+    return diagonal ? 'DIAG_LOOP' : 'X_LOOP';
+  }
+
+  if (unique.size === 3) return 'Z_LOOP';
+
+  return 'GATE_ON'; // 4 unique quadrants — all occupied
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PHASE B — CODE HINT SEED TABLE
+// Maps GEO loop family + depth → a starter code string.
+// These are SEEDED values — learned values will override as the Library grows.
+// Geometry → Code. The path IS the program.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const SEED_CODEHINTS: Record<GEOFamily, Record<number, string>> = {
+  Y_LOOP: {
+    2: 'print("Hello")',
+    4: 'for (let i = 0; i < n; i++) { print(i) }',
+    6: 'arr.forEach(x => print(x))',
+  },
+  X_LOOP: {
+    2: 'if (condition) { doThis() } else { doThat() }',
+    4: 'while (x > 0) { x = condition ? x - 1 : x + 1 }',
+    6: 'switch (state) { case A: ... case B: ... }',
+  },
+  Z_LOOP: {
+    2: 'repeat(n) { /* body */ }',
+    4: 'for (let i = 0; i < rows; i++) { for (let j = 0; j < cols; j++) { } }',
+    6: 'function traverse(grid) { /* sweep all three quadrants */ }',
+  },
+  DIAG_LOOP: {
+    2: 'function ping() { return pong() }',
+    4: 'element.addEventListener("click", handler)',
+    6: 'async function fetch() { const res = await call(); return res }',
+  },
+  GATE_ON: {
+    2: 'function myFunction() { /* body */ }',
+    4: 'class MyClass { constructor() {} }',
+    6: 'module.exports = { /* full API */ }',
+  },
+  GATE_OFF: {
+    2: '// empty',
+    4: 'null',
+    6: 'undefined',
+  },
+};
+
+/**
+ * Find the nearest seeded code hint for a given family and depth.
+ * Uses closest-depth lookup so there's always a match.
+ */
+function getCodeHint(family: GEOFamily, depth: number): string {
+  const hints = SEED_CODEHINTS[family];
+  const keys = Object.keys(hints).map(Number).sort((a, b) => a - b);
+  const closest = keys.reduce((prev, curr) =>
+    Math.abs(curr - depth) < Math.abs(prev - depth) ? curr : prev
+  );
+  return hints[closest] ?? '// ?';
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PHASE B — HINT EVOLUTION TIERS
+// As a pattern is reinforced beyond 0.9, the code hint matures.
+// Confidence maps to conceptual depth: geometry grows into richer programs.
+//
+//  0.90 → Apprentice  (seeded hint — the Librarian hears the knock)
+//  0.95 → Journeyman  (next depth — the pattern earns a name)
+//  1.00 → Master      (deepest hint — the rock reaches the top)
+// ═══════════════════════════════════════════════════════════════════════════
+
+type EvolutionTier = 'apprentice' | 'journeyman' | 'master';
+
+function getConfidenceTier(confidence: number): EvolutionTier {
+  if (confidence >= 1.0) return 'master';
+  if (confidence >= 0.95) return 'journeyman';
+  return 'apprentice';
+}
+
+function getEvolvedCodeHint(family: GEOFamily, depth: number, tier: EvolutionTier): string {
+  // Tier bumps the "perceived" depth so getCodeHint finds a richer seed.
+  // apprentice → exact depth (seeded at promotion)
+  // journeyman → depth + 2  (intermediate complexity)
+  // master     → depth + 4  (maximum complexity for this family)
+  const depthBump = tier === 'master' ? 4 : tier === 'journeyman' ? 2 : 0;
+  return getCodeHint(family, depth + depthBump);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // THE BABY AGENT
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -134,6 +257,9 @@ export class BabyAgent {
 
   // Wild mode state
   private wildMode = false;
+
+  // Phase C: Guide Mode — anti-spam timer for guide_available events
+  private _lastGuideTick = -999;
 
   constructor(config: BabyConfig = BABY_0_CONFIG) {
     this.cfg = config;
@@ -296,6 +422,200 @@ export class BabyAgent {
   }
 
   /**
+   * Get the Librarian's archive — patterns promoted to Cyan State (confidence ≥ 0.9).
+   */
+  getLibraryCache(): LibraryEntry[] {
+    return this.brain.libraryCache;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // PATTERN INJECTION — Human gesture enters the cognitive loop
+  //
+  // The human draws in a notebook. A photo is taken. An LLM reads the sketch
+  // and returns a GEO path. That path is injected here — as if the baby had
+  // explored that quadrant sequence and found a reward there.
+  //
+  // When the injected path matches a library entry (LCS), the baby "recognizes"
+  // what the human drew and responds with the corresponding code hint.
+  // This is the moment human and baby's interests align.
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Inject a GEO path as a high-confidence external observation.
+   *
+   * Source: 'sketch' (image→GEO pipeline), 'draw' (DrawCanvas stroke),
+   *         'api' (programmatic), 'guide' (Guide Mode interaction)
+   *
+   * The path is treated as a strong reinforcement signal:
+   *   - New path: cached at confidence 0.5 (already "seen" by human)
+   *   - Known path: reinforced +0.2 (human and baby agree — big signal)
+   *   - Library match: emits 'sketch_match' event with the matching entry
+   *
+   * Returns the LibraryEntry if a match was found (confidence ≥ 0.9), else null.
+   */
+  injectPattern(
+    path: string[],
+    source: 'sketch' | 'draw' | 'api' | 'guide' = 'sketch'
+  ): LibraryEntry | null {
+    if (path.length === 0) return null;
+
+    const location: QuadrantAddress = {
+      depth: path.length,
+      path: path as ('TL' | 'TR' | 'BL' | 'BR')[],
+    };
+    const pathKey = path.join('→');
+
+    // ── Check existing pattern cache ─────────────────────────────────────
+    const existing = this.brain.patternCache.find(
+      p => p.geoAddress?.path?.join('→') === pathKey
+    );
+
+    if (existing) {
+      // Human drew a path baby already knows — strong agreement signal
+      const prevConfidence = existing.confidence;
+      existing.confidence = Math.min(1.0, existing.confidence + 0.2); // big boost
+      existing.lastFiredAt = this.brain.tick;
+      this.emit({ type: 'pattern_reinforced', pattern: existing, prevConfidence });
+      console.log(`[${this.cfg.name}] 🎨 INJECT (${source}) [${pathKey}] → confidence ${existing.confidence.toFixed(2)}`);
+    } else {
+      // Human drew something new — cache it immediately at 0.5 confidence
+      const pattern: SpatialPattern = {
+        id: `inject_${source}_${Date.now()}`,
+        geoAddress: location,
+        actionSequence: [location],
+        visualSignature: [999], // high delta signature — this was a strong human signal
+        confidence: 0.5,
+        discoveredAtAge: this.brain.age,
+        lastFiredAt: this.brain.tick,
+      };
+      this.brain.patternCache.push(pattern);
+      this.brain.knowledge.set(pattern.id, pattern);
+      this.brain.age++;
+      this.emit({ type: 'pattern_cached', pattern });
+      console.log(`[${this.cfg.name}] 🎨 NEW INJECT (${source}) [${pathKey}] → cached at 0.5`);
+    }
+
+    // ── Check for library match (LCS) ────────────────────────────────────
+    const target = this.getGuideTarget(); // reuse LCS logic — finds best library match
+    if (target && target.similarity >= 0.7) {
+      console.log(
+        `[${this.cfg.name}] 🎵 SKETCH MATCH! [${pathKey}] aligns with library [${target.toEntry.address.join('→')}] ` +
+        `— ${target.toEntry.loopFamily} | "${target.toEntry.codeHint}" | similarity: ${(target.similarity * 100).toFixed(0)}%`
+      );
+      return target.toEntry;
+    }
+
+    // ── Check direct library match ────────────────────────────────────────
+    const exactMatch = this.brain.libraryCache.find(e => e.id === pathKey);
+    if (exactMatch) {
+      console.log(`[${this.cfg.name}] 🎵 EXACT MATCH! [${pathKey}] — "${exactMatch.codeHint}"`);
+      return exactMatch;
+    }
+
+    return null;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // SHARED CANVAS APIs — DrawCanvas feeds the baby directly
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Feed a drawn stroke directly into the baby's shadow canvas.
+   * This is the highest-value input: student gesture → pixel delta → reward.
+   * The baby sees your drawing as high-entropy food.
+   *
+   * Called by DrawCanvas on every mouse point during a stroke.
+   */
+  feedStroke(
+    x: number,
+    y: number,
+    radius: number,
+    color: { r: number; g: number; b: number }
+  ): void {
+    if (!this.shadowCtx || !this.shadowCanvas) return;
+    const ctx = this.shadowCtx;
+    ctx.fillStyle = `rgb(${color.r},${color.g},${color.b})`;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  /**
+   * Get the pixel bounding box of the baby's current focus quadrant.
+   * DrawCanvas uses this to render the baby's "response" glow at the right location.
+   * Returns null if baby has no focus.
+   */
+  getFocusRegion(
+    canvasW = 400,
+    canvasH = 400
+  ): { x: number; y: number; w: number; h: number } | null {
+    if (!this.brain.currentFocus) return null;
+    return quadrantToPixelRegion(this.brain.currentFocus, canvasW, canvasH);
+  }
+
+  /**
+   * Get the baby's current visual resolution depth.
+   * DrawCanvas uses this to draw the matching GEO grid overlay.
+   */
+  getResolution(): number {
+    return this.brain.visualResolution;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // PHASE C — GUIDE MODE
+  // When frustration ≥ 10 and the Librarian has filed patterns, return the
+  // closest library entry to the current focus — using LCS similarity.
+  // The guide IS the geometry. No text. The Librarian draws a path.
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /** LCS distance between two path arrays. Used for guide matching. */
+  private static _lcsLength(a: string[], b: string[]): number {
+    const m = a.length, n = b.length;
+    const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+    for (let i = 1; i <= m; i++) {
+      for (let j = 1; j <= n; j++) {
+        dp[i][j] = a[i - 1] === b[j - 1]
+          ? dp[i - 1][j - 1] + 1
+          : Math.max(dp[i - 1][j], dp[i][j - 1]);
+      }
+    }
+    return dp[m][n];
+  }
+
+  /**
+   * Guide Mode: find the closest library entry to the current focus path.
+   *
+   * Returns null if:
+   *   - frustration < 10 (not struggling enough for the guide to activate)
+   *   - library is empty (no Cyan State patterns filed yet)
+   *   - no current focus (baby isn't looking at anything)
+   *
+   * The returned entry is the nearest beacon — the Librarian points at it
+   * by drawing a line on SpatialEye. No text. The path IS the direction.
+   */
+  getGuideTarget(): { fromPath: string[]; toEntry: LibraryEntry; similarity: number } | null {
+    if (this.brain.frustration < 10) return null;
+    if (this.brain.libraryCache.length === 0) return null;
+    if (!this.brain.currentFocus) return null;
+
+    const currentPath = this.brain.currentFocus.path.map(p => String(p));
+    let best: LibraryEntry | null = null;
+    let bestScore = -1;
+
+    for (const entry of this.brain.libraryCache) {
+      const lcs = BabyAgent._lcsLength(currentPath, entry.address);
+      const maxLen = Math.max(currentPath.length, entry.address.length, 1);
+      const similarity = lcs / maxLen;
+      if (similarity > bestScore) {
+        bestScore = similarity;
+        best = entry;
+      }
+    }
+
+    return best ? { fromPath: currentPath, toEntry: best, similarity: bestScore } : null;
+  }
+
+  /**
    * Serialize brain state to a plain JSON object for persistence.
    * Safe to JSON.stringify and save to disk or localStorage.
    */
@@ -318,7 +638,18 @@ export class BabyAgent {
         confidence: p.confidence,
         discoveredAtAge: p.discoveredAtAge,
         lastFiredAt: p.lastFiredAt,
-        rewardValue: p.rewardValue,
+      })),
+      // Phase A: persist the Librarian's archive across sessions
+      libraryCache: this.brain.libraryCache.map(e => ({
+        id: e.id,
+        address: e.address,
+        depth: e.depth,
+        confidence: e.confidence,
+        promotedAt: e.promotedAt,
+        deltaSignature: e.deltaSignature,
+        loopFamily: e.loopFamily,
+        codeHint: e.codeHint,
+        visitCount: e.visitCount,
       })),
       wildMode: this.wildMode,
       stats: {
@@ -354,9 +685,25 @@ export class BabyAgent {
         lastFiredAt: p.lastFiredAt ?? 0,
       } as SpatialPattern));
     }
+    // Restore library cache if present
+    if (Array.isArray(snapshot.libraryCache)) {
+      this.brain.libraryCache = snapshot.libraryCache.map((e: any) => ({
+        id: e.id,
+        address: e.address ?? [],
+        depth: e.depth ?? 0,
+        confidence: e.confidence ?? 0.9,
+        promotedAt: e.promotedAt ?? 0,
+        deltaSignature: e.deltaSignature ?? 0,
+        loopFamily: (e.loopFamily as GEOFamily) ?? 'Y_LOOP',
+        codeHint: e.codeHint ?? null,
+        visitCount: e.visitCount ?? 0,
+        cyanFlashFired: true,   // already shown before — don't re-flash on restore
+      } as LibraryEntry));
+    }
     console.log(
       `[${this.cfg.name}] 🧠 Brain loaded from ${snapshot.timestamp}. `,
-      `${this.brain.patternCache.length} patterns restored at ${Math.pow(2, this.brain.visualResolution)}×${Math.pow(2, this.brain.visualResolution)} resolution.`
+      `${this.brain.patternCache.length} patterns restored at ${Math.pow(2, this.brain.visualResolution)}×${Math.pow(2, this.brain.visualResolution)} resolution.`,
+      this.brain.libraryCache.length > 0 ? `📚 ${this.brain.libraryCache.length} library entries restored.` : ''
     );
   }
 
@@ -539,7 +886,15 @@ export class BabyAgent {
           if (this.brain.frustration >= 5 && this.brain.frustration < 10) {
             // SEEK_NEW_QUADRANT — already happens in pickFocus via explore_unexplored
           } else if (this.brain.frustration >= 10 && this.brain.frustration < 15) {
-            // SWITCH_STRATEGY — prioritize random_leap and exploration
+            // 🧭 Phase C: Guide Mode — Librarian draws a path to the nearest beacon
+            // Emit once every ~5 ticks (anti-spam) so App.tsx can update the guide overlay
+            if (this.brain.tick - this._lastGuideTick >= 5) {
+              const target = this.getGuideTarget();
+              if (target) {
+                this._lastGuideTick = this.brain.tick;
+                this.emit({ type: 'guide_available', fromPath: target.fromPath, toEntry: target.toEntry, similarity: target.similarity });
+              }
+            }
           } else if (this.brain.frustration >= 15) {
             // REST_MODE — drain energy so rest lasts a meaningful duration
             this.brain.isResting = true;
@@ -745,6 +1100,38 @@ export class BabyAgent {
   // ─────────────────────────────────────────────────────────────────────────
 
   /**
+   * Promote a pattern to the Librarian's archive (Cyan State).
+   *
+   * Called when a pattern crosses confidence ≥ 0.9 for the first time.
+   * Infers the GEO loop family, sets a seeded code hint, and files the entry.
+   * Emits 'cyan_promoted' so SpatialEye can fire the cyan ring flash.
+   *
+   * The Librarian doesn't push the rock. It files the path.
+   */
+  private promoteToLibrary(pattern: SpatialPattern, delta: number): LibraryEntry {
+    const path = (pattern.geoAddress?.path ?? []).map(p => String(p));
+    const depth = pattern.geoAddress?.depth ?? path.length;
+    const family = inferLoopFamily(path);
+    const visitCount = this.brain.visitCounts.get(addressToKey(pattern.geoAddress)) ?? 0;
+
+    const entry: LibraryEntry = {
+      id: path.join('→'),
+      address: path,
+      depth,
+      confidence: pattern.confidence,
+      promotedAt: this.brain.tick,
+      deltaSignature: delta,
+      loopFamily: family,
+      codeHint: getCodeHint(family, depth),
+      visitCount,
+      cyanFlashFired: false,
+    };
+
+    this.brain.libraryCache.push(entry);
+    return entry;
+  }
+
+  /**
    * Cache or reinforce a pattern when reward fires.
    *
    * If a pattern already exists at this exact GEO path:
@@ -771,6 +1158,33 @@ export class BabyAgent {
         console.log(
           `[${this.cfg.name}] 🌸 Pattern STABILIZED at [${pathKey}] — confidence ${existing.confidence.toFixed(1)} (orange → pink)`
         );
+      }
+
+      // 🩵 CYAN STATE — Aha! moment: promote to Librarian's archive at confidence ≥ 0.9
+      if (existing.confidence >= 0.9) {
+        const libEntry = this.brain.libraryCache.find(e => e.id === pathKey);
+        if (!libEntry) {
+          // First promotion — file into library, emit cyan flash
+          const entry = this.promoteToLibrary(existing, delta);
+          this.emit({ type: 'cyan_promoted', entry });
+          console.log(
+            `[${this.cfg.name}] 🩵 CYAN STATE at [${pathKey}] — filed as ${entry.loopFamily} | "${entry.codeHint}"`
+          );
+        } else {
+          // 📗 Phase B: Hint Evolution — the code grows as the rock is pushed higher
+          libEntry.visitCount++;
+          libEntry.confidence = existing.confidence;  // keep in sync
+          const newTier = getConfidenceTier(existing.confidence);
+          const newHint = getEvolvedCodeHint(libEntry.loopFamily, libEntry.depth, newTier);
+          if (newHint !== libEntry.codeHint) {
+            const prevHint = libEntry.codeHint;
+            libEntry.codeHint = newHint;
+            this.emit({ type: 'hint_evolved', entry: libEntry, prevHint, tier: newTier });
+            console.log(
+              `[${this.cfg.name}] 📗 HINT EVOLVED at [${pathKey}] → ${newTier.toUpperCase()} | "${newHint}"`
+            );
+          }
+        }
       }
       // Auto-save on stabilization
       if (this.brain.age % 5 === 0) this.persistToStorage();
@@ -844,6 +1258,19 @@ function makeDevTools(agent: BabyAgent, name: string) {
       const s = agent.serialize() as any;
       console.log(`[${name}] 🧠 ${s.stats.totalPatterns} patterns | ${s.stats.gridSize}×${s.stats.gridSize} res | wild: ${s.wildMode} | energy: ${(s.brain.energy * 100).toFixed(0)}%`);
       return s.stats;
+    },
+    // Phase A: Librarian's archive inspection
+    library: () => {
+      const lib = agent.getLibraryCache();
+      if (lib.length === 0) {
+        console.log(`[${name}] 📚 Library empty — no patterns promoted to Cyan State yet (need confidence ≥ 0.9)`);
+        return [];
+      }
+      console.log(`[${name}] 📚 Library: ${lib.length} entries`);
+      lib.forEach((e, i) => {
+        console.log(`  ${i+1}. [${e.address.join('→')}] | ${e.loopFamily} | depth ${e.depth} | conf ${e.confidence.toFixed(2)} | "${e.codeHint}"`);
+      });
+      return lib;
     },
   };
 }

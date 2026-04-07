@@ -3,6 +3,15 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Send, Sparkles, X, Bot, User, MessageSquare, Lightbulb, Code } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
 
+// ── SINGLETON AI CLIENT ────────────────────────────────────────────────────
+// Creating a new GoogleGenAI() inside handleSend() on every message
+// leaks listeners and internal state → GC never cleans up → page dies.
+// One instance at module level. Zero leak. Always the same connection.
+const _ai = typeof process !== 'undefined' && process.env?.GEMINI_API_KEY
+  ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
+  : null;
+const GEMINI_MODEL = 'gemini-1.5-flash'; // verified stable model id
+
 interface Message {
   role: 'user' | 'assistant';
   content: string;
@@ -37,9 +46,7 @@ const TutorAssistant: React.FC<TutorAssistantProps> = ({ isOpen, onClose, worksp
     setIsLoading(true);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const model = "gemini-3-flash-preview";
-      
+      if (!_ai) throw new Error('No GEMINI_API_KEY set — tutor offline');
       const systemInstruction = `
         You are a friendly and encouraging STEAM Tutor for "Momentum Lab", a block-based game engine.
         Your goal is to help students (ages 8-14) learn programming concepts through game design.
@@ -70,8 +77,8 @@ const TutorAssistant: React.FC<TutorAssistantProps> = ({ isOpen, onClose, worksp
         ${workspaceXml || "Empty workspace"}
       `;
 
-      const response = await ai.models.generateContent({
-        model,
+      const response = await _ai.models.generateContent({
+        model: GEMINI_MODEL,
         contents: messages.concat({ role: 'user', content: userMessage }).map(m => ({
           role: m.role === 'assistant' ? 'model' : 'user',
           parts: [{ text: m.content }]

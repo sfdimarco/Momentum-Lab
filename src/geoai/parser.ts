@@ -41,6 +41,48 @@ export interface SpatialPattern {
  */
 export type PatternCache = Map<string, SpatialPattern>;
 
+// ═══════════════════════════════════════════════════════════════════════════
+// LIBRARY TYPES — Phase A: Sisyphus & Librarian Protocol
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * GEO loop family — inferred from the spatial trajectory of a cached pattern.
+ * The shape of the path IS the type of code construct it maps to.
+ *
+ *  Y_LOOP    → 1 unique quadrant (rotating)   → print / assignment (linear)
+ *  X_LOOP    → 2 adjacent quadrants            → if / else (conditional)
+ *  DIAG_LOOP → 2 diagonal quadrants            → recursion / callback
+ *  Z_LOOP    → 3 unique quadrants (sweep)      → for / while (loop)
+ *  GATE_ON   → all 4 quadrants                 → function definition
+ *  GATE_OFF  → empty / no movement             → null / empty state
+ */
+export type GEOFamily =
+  | 'Y_LOOP'
+  | 'X_LOOP'
+  | 'Z_LOOP'
+  | 'DIAG_LOOP'
+  | 'GATE_ON'
+  | 'GATE_OFF';
+
+/**
+ * A LibraryEntry is a SpatialPattern that has crossed the CYAN STATE threshold
+ * (confidence ≥ 0.9). The Librarian's permanent archive — patterns it has "understood".
+ *
+ * The Librarian never pushes. It remembers how the rock was pushed.
+ */
+export interface LibraryEntry {
+  id: string;                 // address path joined: "TL→TR→BR→TL"
+  address: string[];          // GEO quadtree path e.g. ["TL","TR","BR","TL"]
+  depth: number;              // quadtree depth of the pattern
+  confidence: number;         // ≥ 0.9 at promotion, continues strengthening
+  promotedAt: number;         // brain tick when first promoted
+  deltaSignature: number;     // avg pixel delta that earned promotion (the stone's weight)
+  loopFamily: GEOFamily;      // inferred from spatial trajectory
+  codeHint: string | null;    // Phase B: mapped code template (null until filled)
+  visitCount: number;         // how many times Sisyphus has been near this pattern
+  cyanFlashFired: boolean;    // has SpatialEye already rendered the promotion flash?
+}
+
 /**
  * RuntimeBrain — the living state of baby_0.
  * This struct holds all mutable and immutable state during execution.
@@ -66,6 +108,9 @@ export interface RuntimeBrain {
   lastReward: { location: QuadrantAddress; value: number; tick: number } | null;
   tick: number;                                      // runtime tick counter
   isResting: boolean;                                // resting mode (energy depletion)
+
+  // Phase A: Sisyphus & Librarian — Cyan State archive
+  libraryCache: LibraryEntry[];                      // patterns promoted at confidence ≥ 0.9
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -94,6 +139,9 @@ export function createBabyBrain(): RuntimeBrain {
     lastReward: null,
     tick: 0,
     isResting: false,
+
+    // Phase A: Sisyphus & Librarian — starts empty, fills as baby understands
+    libraryCache: [],
   };
 }
 

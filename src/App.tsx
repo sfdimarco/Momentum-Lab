@@ -8,12 +8,19 @@ import { MomentumEngine, GameState } from './lib/engine';
 import * as Blockly from 'blockly';
 import SynestheticLayer from './components/SynestheticLayer';
 import SpatialEye from './components/SpatialEye';
-import type { PatternLockEvent } from './components/SpatialEye';
+import type { PatternLockEvent, CyanPromotionEvent, GuideTarget } from './components/SpatialEye';
 import { PatternBurst, DiscoveryFlashOverlay } from './components/PatternBurst';
 import type { DiscoveryFlash } from './components/PatternBurst';
 import { syncFromGameState, resetSpatialState } from './lib/spatial-state';
 import { babyAgent, baby1Agent, BabyAgentEvent } from './geoai/baby_agent';
 import type { SpatialPattern } from './geoai/parser';
+import LibraryPanel from './components/LibraryPanel';
+import DrawCanvas from './components/DrawCanvas';
+import StrokeHUD from './components/StrokeHUD';
+import type { StrokeResult } from './geoai/stroke-interpreter';
+import GEOPlayground from './components/GEOPlayground';
+import { sketchToGEO, fileToBase64 } from './geoai/sketch-interpreter';
+import type { SketchGEOResult } from './geoai/sketch-interpreter';
 
 export default function App() {
   const [gameState, setGameState] = useState<GameState | null>(null);
@@ -33,7 +40,8 @@ export default function App() {
   const isRunningRef = useRef(false);
 
   // ── baby_0 state ──────────────────────────────────────────────────────────
-  const [babyMode, setBabyMode] = useState(false);
+  // Always-on: cache IS the cognitive loop. Learning starts at birth.
+  const [babyMode, setBabyMode] = useState(true);
   const [wildMode, setWildMode] = useState(false);
   const [babyBrainSnap, setBabyBrainSnap] = useState({
     visualResolution: 2,
@@ -41,6 +49,7 @@ export default function App() {
     frustration: 0,
     energy: 1.0,
     patternCache: [] as SpatialPattern[],
+    libraryCache: [] as Array<{ address: string[]; depth: number; loopFamily: string }>,
   });
   const [lastReward, setLastReward] = useState<{
     quadrant: { depth: number; path: string[] };
@@ -49,7 +58,7 @@ export default function App() {
   } | null>(null);
 
   // ── baby_1 state ──────────────────────────────────────────────────────────
-  const [baby1Mode, setBaby1Mode] = useState(false);
+  const [baby1Mode, setBaby1Mode] = useState(true);
   const [wild1Mode, setWild1Mode] = useState(false);
   const [baby1BrainSnap, setBaby1BrainSnap] = useState({
     visualResolution: 2,
@@ -57,6 +66,7 @@ export default function App() {
     frustration: 0,
     energy: 1.0,
     patternCache: [] as SpatialPattern[],
+    libraryCache: [] as Array<{ address: string[]; depth: number; loopFamily: string }>,
   });
   const [last1Reward, setLast1Reward] = useState<{
     quadrant: { depth: number; path: string[] };
@@ -66,10 +76,98 @@ export default function App() {
 
   const canvasContainerRef = useRef<HTMLDivElement>(null);
 
+  // ── Draw Mode — shared tactile canvas ────────────────────────────────────
+  const [drawMode, setDrawMode] = useState(false);
+  const [lastStroke, setLastStroke] = useState<StrokeResult | null>(null);
+  const [livePath, setLivePath] = useState<string[]>([]);
+
+  const handleStroke = React.useCallback((result: StrokeResult) => {
+    setLastStroke(result);
+    setLivePath([]);
+    console.log(
+      `[draw] ✏️ Stroke → ${result.family} | [${result.path.join('→')}]`,
+      result.codeHint ? `| "${result.codeHint}"` : '| no match yet'
+    );
+  }, []);
+
+  const handleStrokeUpdate = React.useCallback((path: string[], quadrant: string) => {
+    setLivePath([...path]);
+  }, []);
+
+  // ── GEOPlayground canvas ready — point both babies at it ─────────────────
+  // When GEOPlayground mounts its p5 canvas, we give both agents eyes immediately.
+  // No polling delay needed — onCanvasReady fires synchronously after p5.setup().
+  const handleGEOCanvasReady = React.useCallback((canvas: HTMLCanvasElement) => {
+    babyAgent.setCanvas(canvas);
+    baby1Agent.setCanvas(canvas);
+    console.log('[geoai] 👁️ Both babies now watching the GEO playground canvas');
+  }, []);
+
+  // ── Sketch Upload — "Human sings, Baby codes" pipeline ───────────────────
+  const [sketchResult, setSketchResult] = useState<SketchGEOResult | null>(null);
+  const [sketchInterpreting, setSketchInterpreting] = useState(false);
+  const sketchResultTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleSketchUpload = React.useCallback(() => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e: any) => {
+      const file: File = e.target.files?.[0];
+      if (!file) return;
+      setSketchInterpreting(true);
+      setSketchResult(null);
+      try {
+        const { base64, mimeType } = await fileToBase64(file);
+        // Gather library from both agents for matching
+        const lib0 = babyAgent.getLibraryCache().map(entry => ({
+          id: entry.address.join('_'),
+          address: entry.address,
+          loopFamily: entry.loopFamily,
+          codeHint: entry.codeHint ?? null,
+        }));
+        const lib1 = baby1Agent.getLibraryCache().map(entry => ({
+          id: entry.address.join('_') + '_b1',
+          address: entry.address,
+          loopFamily: entry.loopFamily,
+          codeHint: entry.codeHint ?? null,
+        }));
+        const combinedLib = [...lib0, ...lib1];
+        const result = await sketchToGEO(base64, mimeType, combinedLib);
+        setSketchResult(result);
+
+        // Inject into baby_0 first, then baby_1
+        const match0 = babyAgent.injectPattern(result.path, 'sketch');
+        const match1 = baby1Agent.injectPattern(result.path, 'sketch');
+        const matched = match0 ?? match1;
+
+        console.log(
+          `[sketch] 🎨 Interpreted → ${result.family} [${result.path.join('→')}] conf=${result.confidence.toFixed(2)}`,
+          matched ? `| 🔥 Library match: "${matched.codeHint}"` : '| No match yet — seeded'
+        );
+
+        // Auto-clear the result overlay after 6 seconds
+        if (sketchResultTimerRef.current) clearTimeout(sketchResultTimerRef.current);
+        sketchResultTimerRef.current = setTimeout(() => setSketchResult(null), 6000);
+      } catch (err) {
+        console.error('[sketch] Pipeline error:', err);
+      } finally {
+        setSketchInterpreting(false);
+      }
+    };
+    input.click();
+  }, []);
+
   // ── Pattern Burst (bidirectional student-AI loop) ─────────────────────────
   const [discoveryFlashes, setDiscoveryFlashes] = useState<DiscoveryFlash[]>([]);
   const [lastLock0, setLastLock0] = useState<PatternLockEvent | null>(null);
   const [lastLock1, setLastLock1] = useState<PatternLockEvent | null>(null);
+  // Phase A: Cyan State — Librarian promotion events
+  const [lastCyan0, setLastCyan0] = useState<CyanPromotionEvent | null>(null);
+  const [lastCyan1, setLastCyan1] = useState<CyanPromotionEvent | null>(null);
+  // Phase C: Guide Mode — set when baby frustration ≥ 10 AND library has entries
+  const [guideTarget0, setGuideTarget0] = useState<GuideTarget | null>(null);
+  const [guideTarget1, setGuideTarget1] = useState<GuideTarget | null>(null);
 
   const handleFlash = React.useCallback((flash: DiscoveryFlash) => {
     setDiscoveryFlashes(prev => [...prev, flash]);
@@ -171,6 +269,8 @@ export default function App() {
       const b = babyAgent.getBrain();
       if (event.type === 'reward_fired') {
         setLastReward({ quadrant: event.quadrant as any, value: event.value, ts: Date.now() });
+        // Reward clears Guide Mode — the baby found something on its own
+        setGuideTarget0(null);
       }
       // Track pattern lock for SpatialEye starburst
       if (event.type === 'pattern_reinforced') {
@@ -179,12 +279,45 @@ export default function App() {
           setLastLock0({ path: pattern.geoAddress.path, depth: pattern.geoAddress.depth, ts: Date.now() });
         }
       }
+      // Phase A: Cyan State — Librarian promotion event
+      if (event.type === 'cyan_promoted') {
+        setLastCyan0({
+          path: event.entry.address,
+          depth: event.entry.depth,
+          loopFamily: event.entry.loopFamily,
+          codeHint: event.entry.codeHint,
+          ts: Date.now(),
+        });
+      }
+      // Phase B: Hint Evolution — force libraryCache re-render when a hint matures
+      if (event.type === 'hint_evolved') {
+        // libraryCache is already mutated in-place by the agent;
+        // we trigger a brainSnap update by spreading the current cache.
+        setBabyBrainSnap(prev => ({
+          ...prev,
+          libraryCache: [...babyAgent.getLibraryCache()],
+        }));
+      }
+      // Phase C: Guide Mode — Librarian draws a path toward the nearest beacon
+      if (event.type === 'guide_available') {
+        setGuideTarget0({
+          fromPath: event.fromPath,
+          toPath: event.toEntry.address,
+          family: event.toEntry.loopFamily,
+          similarity: event.similarity,
+        });
+      }
+      // Rest clears guide — baby is resting, guide no longer needed
+      if (event.type === 'rest_start') {
+        setGuideTarget0(null);
+      }
       setBabyBrainSnap({
         visualResolution: b.visualResolution,
         currentFocus: b.currentFocus as any,
         frustration: b.frustration,
         energy: b.energy,
         patternCache: [...b.patternCache],
+        libraryCache: [...b.libraryCache],
       });
     });
 
@@ -226,6 +359,7 @@ export default function App() {
       const b = baby1Agent.getBrain();
       if (event.type === 'reward_fired') {
         setLast1Reward({ quadrant: event.quadrant as any, value: event.value, ts: Date.now() });
+        setGuideTarget1(null);
       }
       // Track pattern lock for SpatialEye starburst
       if (event.type === 'pattern_reinforced') {
@@ -234,12 +368,42 @@ export default function App() {
           setLastLock1({ path: pattern.geoAddress.path, depth: pattern.geoAddress.depth, ts: Date.now() });
         }
       }
+      // Phase A: Cyan State — Librarian promotion event
+      if (event.type === 'cyan_promoted') {
+        setLastCyan1({
+          path: event.entry.address,
+          depth: event.entry.depth,
+          loopFamily: event.entry.loopFamily,
+          codeHint: event.entry.codeHint,
+          ts: Date.now(),
+        });
+      }
+      // Phase B: Hint Evolution — force libraryCache re-render for baby_1
+      if (event.type === 'hint_evolved') {
+        setBaby1BrainSnap(prev => ({
+          ...prev,
+          libraryCache: [...baby1Agent.getLibraryCache()],
+        }));
+      }
+      // Phase C: Guide Mode
+      if (event.type === 'guide_available') {
+        setGuideTarget1({
+          fromPath: event.fromPath,
+          toPath: event.toEntry.address,
+          family: event.toEntry.loopFamily,
+          similarity: event.similarity,
+        });
+      }
+      if (event.type === 'rest_start') {
+        setGuideTarget1(null);
+      }
       setBaby1BrainSnap({
         visualResolution: b.visualResolution,
         currentFocus: b.currentFocus as any,
         frustration: b.frustration,
         energy: b.energy,
         patternCache: [...b.patternCache],
+        libraryCache: [...b.libraryCache],
       });
     });
 
@@ -932,6 +1096,33 @@ export default function App() {
                   <Zap size={14} />
                   Wild₁
                 </button>
+                {/* ── Draw Mode toggle ─────────────────────────────────── */}
+                <button
+                  onClick={() => setDrawMode(prev => !prev)}
+                  title="🖌️ Draw Mode — your strokes become GEO code. Baby eats your pixels."
+                  className={`p-2 rounded-lg transition-all flex items-center gap-2 text-sm font-bold ${
+                    drawMode
+                      ? 'bg-rose-100 text-rose-700 ring-2 ring-rose-400 animate-pulse'
+                      : 'bg-slate-200 text-slate-500 hover:bg-rose-50 hover:text-rose-600'
+                  }`}
+                >
+                  <span style={{ fontSize: 16 }}>🖌️</span>
+                  Draw
+                </button>
+                {/* ── Sketch Upload — "Human Sings, Baby Codes" ─────────── */}
+                <button
+                  onClick={handleSketchUpload}
+                  disabled={sketchInterpreting}
+                  title="🎨 Upload a sketch — Gemini reads the gesture and feeds it to the babies as a GEO path"
+                  className={`p-2 rounded-lg transition-all flex items-center gap-2 text-sm font-bold ${
+                    sketchInterpreting
+                      ? 'bg-violet-100 text-violet-700 ring-2 ring-violet-400 animate-pulse cursor-wait'
+                      : 'bg-slate-200 text-slate-500 hover:bg-violet-50 hover:text-violet-600'
+                  }`}
+                >
+                  <span style={{ fontSize: 16 }}>{sketchInterpreting ? '⏳' : '🎨'}</span>
+                  {sketchInterpreting ? 'Reading…' : 'Sketch'}
+                </button>
               </div>
             </div>
             
@@ -946,18 +1137,37 @@ export default function App() {
                   </button>
                 )}
                 <div ref={canvasContainerRef} style={{ position: 'relative', display: 'inline-block' }}>
-                  <GameCanvas
-                    gameState={gameState}
-                    xRayMode={xRayMode}
-                    isPaused={isScrubbing}
-                    wildAnimation={wildMode}
-                    className={isCanvasFullScreen ? "w-full h-full max-w-5xl max-h-[80vh] shadow-2xl border-4 border-white/20" : ""}
-                  />
-                  <SynestheticLayer
+                  {/* ── GEO Playground — the living quadtree canvas (boxes in boxes) ── */}
+                  {/* This IS the pattern recognition system. Baby + human paint here.    */}
+                  {/* GameCanvas is rendered on top only when a Blockly program is running */}
+                  <GEOPlayground
                     width={400}
                     height={400}
-                    visible={synestheticMode && isRunning}
+                    agent={babyAgent}
+                    agent2={baby1Agent}
+                    brain={babyBrainSnap}
+                    brain2={baby1BrainSnap}
+                    lastCyanPromotion={lastCyan0 ?? lastCyan1}
+                    guideTarget={guideTarget0 ?? guideTarget1}
+                    onCanvasReady={handleGEOCanvasReady}
                   />
+                  {/* GameCanvas — shown only when user runs a Blockly program */}
+                  {isRunning && (
+                    <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 5 }}>
+                      <GameCanvas
+                        gameState={gameState}
+                        xRayMode={xRayMode}
+                        isPaused={isScrubbing}
+                        wildAnimation={wildMode}
+                        className={isCanvasFullScreen ? "w-full h-full max-w-5xl max-h-[80vh] shadow-2xl border-4 border-white/20" : ""}
+                      />
+                      <SynestheticLayer
+                        width={400}
+                        height={400}
+                        visible={synestheticMode && isRunning}
+                      />
+                    </div>
+                  )}
                   <SpatialEye
                     visible={babyMode}
                     width={400}
@@ -967,6 +1177,8 @@ export default function App() {
                     lastReward={lastReward && (Date.now() - lastReward.ts < 1500) ? lastReward : null}
                     quadrantEntropy={new Map()}
                     lastLock={lastLock0}
+                    lastCyanPromotion={lastCyan0}
+                    guideTarget={guideTarget0}
                   />
                   {/* baby_1 overlay — same canvas, different gaze */}
                   <SpatialEye
@@ -978,12 +1190,105 @@ export default function App() {
                     lastReward={last1Reward && (Date.now() - last1Reward.ts < 1500) ? last1Reward : null}
                     quadrantEntropy={new Map()}
                     lastLock={lastLock1}
+                    lastCyanPromotion={lastCyan1}
+                    guideTarget={guideTarget1}
                   />
                   {/* Discovery Flash overlays — visible "the AI found THIS" moments */}
                   <DiscoveryFlashOverlay
                     flashes={discoveryFlashes}
                     onExpired={handleFlashExpired}
                   />
+                  {/* ── Phase B+: Shared Tactile Canvas ───────────────── */}
+                  {/* DrawCanvas sits on top — captures strokes, feeds baby pixels, */}
+                  {/* renders GEO grid and baby bloom draw-backs.               */}
+                  <DrawCanvas
+                    width={400}
+                    height={400}
+                    active={drawMode}
+                    agent={babyAgent}
+                    agent2={baby1Mode ? baby1Agent : undefined}
+                    libraryCache={[
+                      ...babyBrainSnap.libraryCache,
+                      ...baby1BrainSnap.libraryCache,
+                    ] as any}
+                    onStroke={handleStroke}
+                    onStrokeUpdate={handleStrokeUpdate}
+                    lastCyanPromotion={lastCyan0 ?? lastCyan1}
+                  />
+                  {/* StrokeHUD — floating live translation panel */}
+                  <StrokeHUD
+                    lastStroke={lastStroke}
+                    livePath={livePath}
+                    active={drawMode}
+                  />
+                  {/* ── Sketch Result Overlay — "Baby heard you" ──────────── */}
+                  {/* Shows for 6 seconds after a sketch is interpreted.        */}
+                  {sketchResult && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        bottom: 8,
+                        left: 8,
+                        right: 8,
+                        zIndex: 60,
+                        background: 'rgba(6,8,12,0.88)',
+                        border: `1.5px solid ${
+                          sketchResult.libraryMatch ? '#06b6d4' : '#7c3aed'
+                        }`,
+                        borderRadius: 10,
+                        padding: '8px 12px',
+                        color: '#f0f0f0',
+                        fontFamily: 'monospace',
+                        fontSize: 11,
+                        backdropFilter: 'blur(6px)',
+                        boxShadow: sketchResult.libraryMatch
+                          ? '0 0 16px rgba(6,182,212,0.45)'
+                          : '0 0 12px rgba(124,58,237,0.35)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                        <span style={{ fontSize: 15 }}>🎨</span>
+                        <span style={{ color: sketchResult.libraryMatch ? '#06b6d4' : '#a78bfa', fontWeight: 700 }}>
+                          {sketchResult.family}
+                        </span>
+                        <span style={{ opacity: 0.6 }}>
+                          [{sketchResult.path.join(' → ')}]
+                        </span>
+                        <span style={{
+                          marginLeft: 'auto',
+                          fontSize: 10,
+                          opacity: 0.5,
+                          background: 'rgba(255,255,255,0.08)',
+                          borderRadius: 4,
+                          padding: '1px 5px',
+                        }}>
+                          {Math.round(sketchResult.confidence * 100)}% conf
+                        </span>
+                      </div>
+                      <div style={{ opacity: 0.75, fontSize: 10, marginBottom: sketchResult.codeHint ? 4 : 0 }}>
+                        {sketchResult.description}
+                      </div>
+                      {sketchResult.codeHint && (
+                        <div style={{
+                          marginTop: 4,
+                          padding: '4px 8px',
+                          background: 'rgba(6,182,212,0.15)',
+                          border: '1px solid rgba(6,182,212,0.3)',
+                          borderRadius: 6,
+                          color: '#67e8f9',
+                          fontSize: 11,
+                          fontWeight: 600,
+                        }}>
+                          🔥 Baby knows this: <code>{sketchResult.codeHint}</code>
+                        </div>
+                      )}
+                      {!sketchResult.libraryMatch && (
+                        <div style={{ marginTop: 3, opacity: 0.45, fontSize: 10 }}>
+                          Seeded into baby's cache at 0.5 confidence — keep drawing this pattern to teach it
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* ── baby_0 live telemetry strip ─────────────────────── */}
@@ -1083,6 +1388,25 @@ export default function App() {
                   </div>
                 )}
               </div>
+            )}
+
+            {/* ── Phase B: Librarian's Archive ────────────────────── */}
+            {(babyMode || baby1Mode) && (
+              <LibraryPanel
+                visible={babyMode || baby1Mode}
+                agents={[
+                  ...(babyMode ? [{
+                    libraryCache: babyBrainSnap.libraryCache as any,
+                    label: 'baby_0',
+                    color: '#06b6d4',
+                  }] : []),
+                  ...(baby1Mode ? [{
+                    libraryCache: baby1BrainSnap.libraryCache as any,
+                    label: 'baby_1',
+                    color: '#ec4899',
+                  }] : []),
+                ]}
+              />
             )}
           </div>
 
