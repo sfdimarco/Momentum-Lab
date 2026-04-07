@@ -249,6 +249,18 @@ export default function App() {
     setGameState(engineRef.current.getState());
   }, []);
 
+  // ── PetMode auto-wild ─────────────────────────────────────────────────────
+  // When PetMode opens, both babies wake up fully and go wild immediately.
+  // No waiting. No clicking. Baby0 just... starts.
+  useEffect(() => {
+    if (petMode) {
+      setBabyMode(true);
+      setBaby1Mode(true);
+      setWildMode(true);
+      setWild1Mode(true);
+    }
+  }, [petMode]);
+
   // ── baby_0 lifecycle ─────────────────────────────────────────────────────
   // wildMode is a dep so that if both buttons are clicked together (batched
   // state update), this effect re-runs and calls enable/disableWildMode

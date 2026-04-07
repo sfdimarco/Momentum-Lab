@@ -9,7 +9,7 @@
 //  a dark, peaceful canvas with a curious digital mind exploring it.
 // ═══════════════════════════════════════════════════════════════════════════
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import GEOPlayground from './GEOPlayground';
 import SpatialEye from './SpatialEye';
 import DrawCanvas from './DrawCanvas';
@@ -70,6 +70,21 @@ const PetMode: React.FC<PetModeProps> = ({
   onCanvasReady,
 }) => {
   const canvasContainerRef = useRef<HTMLDivElement>(null);
+  const [elapsed, setElapsed] = useState(0); // seconds since PetMode opened
+  const startTimeRef = useRef<number>(0);
+
+  // Track uptime since PetMode opened
+  useEffect(() => {
+    if (!active) {
+      setElapsed(0);
+      return;
+    }
+    startTimeRef.current = Date.now();
+    const tick = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startTimeRef.current) / 1000));
+    }, 1000);
+    return () => clearInterval(tick);
+  }, [active]);
 
   // Escape key handler
   useEffect(() => {
@@ -84,6 +99,16 @@ const PetMode: React.FC<PetModeProps> = ({
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [active, onExit]);
+
+  // Format elapsed time as h:mm:ss
+  const formatUptime = (secs: number) => {
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = secs % 60;
+    if (h > 0) return `${h}h ${m.toString().padStart(2,'0')}m ${s.toString().padStart(2,'0')}s`;
+    if (m > 0) return `${m}m ${s.toString().padStart(2,'0')}s`;
+    return `${s}s`;
+  };
 
   if (!active) return null;
 
@@ -170,6 +195,11 @@ const PetMode: React.FC<PetModeProps> = ({
 
       {/* Bottom-left vitals strip */}
       <div className="fixed bottom-6 left-6 text-slate-400 text-xs monospace space-y-1 bg-black/40 p-3 rounded-lg backdrop-blur-sm border border-slate-700/50">
+        {/* Uptime + Wild status */}
+        <div className="flex items-center gap-3 pb-1 border-b border-slate-700/50">
+          <span className="text-yellow-400 font-bold text-[10px] tracking-widest animate-pulse">⚡ WILD</span>
+          <span className="text-slate-500 text-[10px]">uptime: <span className="text-slate-300">{formatUptime(elapsed)}</span></span>
+        </div>
         {/* Baby 0 vitals */}
         <div className="text-slate-300 font-mono text-[11px]">
           <span className="text-cyan-400">🧠 baby_0:</span>
