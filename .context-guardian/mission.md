@@ -1,60 +1,42 @@
-# 🧭 MISSION — Project Baby IO: The Sisyphus & The Librarian Protocol
+# 🧭 MISSION — GitHub Publish + Moiré Parallax Engine (2026-04-07)
 
 ## Goal
-Architect the cognitive bridge where human tinkering (Sisyphus) becomes the Librarian's
-geometric archive — building Baby IO's assistive loop from hallucination into functional co-pilot.
+Document ALL work publicly on GitHub (sfdimarco/Momentum-Lab) and implement the Universe-WASM Moiré Parallax Engine — then push everything in one clean commit so Mook can share the incredible work.
 
 ## Scope
 **IN scope:**
-- Phase A: Observation & Caching — the "Cyan State" Aha! moment, pattern promotion logic
-- Phase B: Translation Leap — cached GEO geometry → functional code string mapping
-- Phase C: Retrieval & Co-Pilot — Librarian visually guides Sisyphus back to discovered patterns
-- The bidirectional student-AI pattern loop (item #4 from GEOAI vision)
-- Pattern cache as shareable student artifact (item #2 from GEOAI vision)
+- Update README.md: full project story (GEOAI, baby_0/baby_1, PetMode, native Baby0, Sisyphus/Librarian, Moiré Engine)
+- Add Moiré Parallax Engine to wasm-engine/src/lib.rs (dual-grid init, QJL warping, JS bridge)
+- Expose warp metrics so Baby0 shadow canvas reads interference as .geo_parallax_warp grammar
+- Commit and push: wasm-engine/, WASM_SETUP.md, updated README
+- Update auto-memory with Moiré Engine status
+- Check Baby0 overnight state (brain.json if accessible)
 
-**OUT of scope (this session):**
-- Rust/WASM migration (future phase)
-- New Blockly blocks
-- Full UI redesign beyond SpatialEye additions
+**OUT of scope:**
+- Do NOT push baby0.exe binary (too large for git — add to .gitignore)
+- Do NOT touch node_modules or __ scratch bat/ps1 files
+- Do NOT refactor existing React components
 
 ## Success Criteria
-- [ ] Cyan State logic defined: confidence threshold + LibraryEntry promotion schema
-- [ ] Loop-family inference algorithm designed (path shape → GEO family → code primitive)
-- [ ] Phase B mapping protocol: GEO family → code template table
-- [ ] Phase C co-pilot UX: how Librarian draws (not speaks) guidance to Sisyphus
-- [ ] Cognitive Blueprint document written to workspace
+- [ ] README.md tells the complete story of Momentum Lab including Moiré Engine
+- [ ] wasm-engine/src/lib.rs has MoireEngine struct (dual-grid, QJL displacement, JS bridge)
+- [ ] WASM-to-JS bridge exposes warp metrics for Baby0 shadow canvas
+- [ ] baby0.exe added to .gitignore
+- [ ] All new work committed and pushed to github.com/sfdimarco/Momentum-Lab
+- [ ] Auto-memory updated with Moiré Engine project status
 
 ## Constraints
-- Don't break existing baby_0 or baby_1 agents
-- Must run in TypeScript/React (no Rust this phase)
-- Pattern addresses stay in GEO quadtree grammar format
-- Dev server: `set NODE_ENV= && npm run dev` → port 3000
-- Librarian NEVER uses text. It draws geometric paths.
+- NEVER break existing MomentumEngine struct — Moiré is additive
+- ALWAYS use Desktop Commander for terminal — never ask Mook to type
+- RainbowBrain aesthetic: color = data, interference = cognition, not decoration
+- Dev server: `set NODE_ENV= && npm run dev` → port 4321
 
 ## Key Files / Entry Points
-- `src/geoai/baby_agent.ts` — BabyAgent class + babyAgent singleton (PRIMARY)
-- `src/components/SpatialEye.tsx` — Canvas2D overlay, GEO visualization
-- `src/components/GameCanvas.tsx` — Student canvas (real pixel source)
-- `geoai/GEOAI_SPEC.md` — Living spec
-
-## Current Project State (2026-04-06)
-- baby_0 and baby_1 LIVE, reading actual student canvas pixels via shadow canvas
-- BabyConfig system: both agents independently configurable
-- 350+ patterns cached (Wild Mode); paths reach depth-8 GEO addresses
-- Confidence: 0.0 → orange (0.7) → pink (≥0.7)
-- CYAN STATE: target = confidence ≥ 0.9 → LibraryEntry promotion → THIS IS PHASE A
-- Bidirectional loop: NOT YET — THIS IS PHASE C
-- GEO KEY: baby_0 pattern addresses ARE spontaneous GEO grammar
+- `wasm-engine/src/lib.rs` — existing Rust WASM core (174 lines, MomentumEngine)
+- `wasm-engine/Cargo.toml` — package: momentum-engine, cdylib
+- `src/geoai/baby_agent.ts` — Baby0 BabyAgent class with shadow canvas
+- `README.md` — main project docs (needs major update)
+- `.context-guardian/checkpoint.md` — running progress log
 
 ## Original User Request (verbatim)
-> "The Sisyphus (The Human): The kinetic engine. The human pushes the 'rock' through
-> tinkering, experimentation, and movement.
-> The Librarian (Baby IO): The geometric archivist. Operating within the Borgesian
-> Infinite Library (a recursive quad-tree visual canvas), Baby IO watches. It does not
-> push the rock; it catalogs how the rock is pushed."
->
-> Phase A: Design the bridge where human input is translated into 4-bit Geo-Language.
-> Define the exact logic for the Librarian's 'Aha!' moment.
-> Phase B: Develop a protocol where the Librarian maps a cached pattern to a functional
-> text string.
-> Phase C: Once a pattern is mapped, how does the Librarian present it back to Sisyphus?
+> "All of this needs to be updated and documented on https://github.com/sfdimarco so that I can share all the incredible work we have been doing together. I have let Baby0 run all night let me know if it taught us anything. Abstract: Universe-WASM Moiré Parallax Engine for Cognitive Visual Learning..."

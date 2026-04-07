@@ -6,3 +6,20 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Native binary — too large for git
+baby0.exe
+*.exe
+
+# Rust build artifacts (keep src, pkg, Cargo.toml — not target)
+wasm-engine/target/
+
+# Windows scratch scripts
+__*.bat
+__*.ps1
+__*.vbs
+__*.txt
+__*.ps1
+
+# Session metadata
+metadata.json
