@@ -3,7 +3,6 @@ import { Play, Square, Zap, Eye, History, RotateCcw, Info, Bot, Sparkles, Downlo
 import { motion, AnimatePresence } from 'motion/react';
 import BlocklyEditor from './components/BlocklyEditor';
 import GameCanvas from './components/GameCanvas';
-import TutorAssistant from './components/TutorAssistant';
 import { MomentumEngine, GameState } from './lib/engine';
 import * as Blockly from 'blockly';
 import SynestheticLayer from './components/SynestheticLayer';
@@ -22,6 +21,7 @@ import GEOPlayground from './components/GEOPlayground';
 import { sketchToGEO, fileToBase64 } from './geoai/sketch-interpreter';
 import type { SketchGEOResult } from './geoai/sketch-interpreter';
 import DogBabyMode from './components/DogBabyMode';
+import PetMode from './components/PetMode';
 
 export default function App() {
   const [gameState, setGameState] = useState<GameState | null>(null);
@@ -30,9 +30,9 @@ export default function App() {
   const [scrubValue, setScrubValue] = useState(100);
   const [isScrubbing, setIsScrubbing] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
-  const [isTutorOpen, setIsTutorOpen] = useState(false);
   const [workspaceXml, setWorkspaceXml] = useState('');
   const [isCanvasFullScreen, setIsCanvasFullScreen] = useState(false);
+  const [petMode, setPetMode] = useState(false);
   
   const engineRef = useRef(new MomentumEngine());
   const [synestheticMode, setSynestheticMode] = useState(true); // Pillar 2 toggle
@@ -258,15 +258,7 @@ export default function App() {
       babyAgent.stop();
       return;
     }
-    // Give the baby eyes — find the p5 canvas inside the container
-    const findCanvas = () => {
-      if (!canvasContainerRef.current) return;
-      const c = canvasContainerRef.current.querySelector('canvas');
-      if (c) babyAgent.setCanvas(c);
-    };
-    findCanvas();
-    // Also try after a brief delay in case p5 hasn't mounted yet
-    const t = setTimeout(findCanvas, 500);
+    // Canvas is set via handleGEOCanvasReady callback — no need to find it here
 
     // Subscribe to agent events → update React state for SpatialEye
     const unsub = babyAgent.on((event: BabyAgentEvent) => {
@@ -334,7 +326,6 @@ export default function App() {
     console.log(`[baby_0] 👁️ Watching. wild=${wildMode}`);
 
     return () => {
-      clearTimeout(t);
       unsub();
       // Only fully stop when babyMode goes false — don't stop on wildMode toggle
       if (!babyMode) babyAgent.stop();
@@ -351,13 +342,7 @@ export default function App() {
       baby1Agent.stop();
       return;
     }
-    const findCanvas = () => {
-      if (!canvasContainerRef.current) return;
-      const c = canvasContainerRef.current.querySelector('canvas');
-      if (c) baby1Agent.setCanvas(c);
-    };
-    findCanvas();
-    const t = setTimeout(findCanvas, 500);
+    // Canvas is set via handleGEOCanvasReady callback — no need to find it here
 
     const unsub = baby1Agent.on((event: BabyAgentEvent) => {
       const b = baby1Agent.getBrain();
@@ -419,7 +404,6 @@ export default function App() {
     console.log(`[baby_1] 🧬 Divergent explorer awakened. wild=${wild1Mode}`);
 
     return () => {
-      clearTimeout(t);
       unsub();
       if (!baby1Mode) baby1Agent.stop();
     };
@@ -945,22 +929,19 @@ export default function App() {
 
           <div className="h-8 w-[1px] bg-slate-200 mx-1" />
 
-          <button 
-            onClick={() => setIsTutorOpen(!isTutorOpen)}
+          <button
+            onClick={() => setPetMode(!petMode)}
             className={`flex items-center gap-2 px-4 py-2 rounded-full font-bold text-sm transition-all shadow-md active:scale-95 ${
-              isTutorOpen 
-                ? 'bg-blue-600 text-white shadow-blue-500/30' 
-                : 'bg-white text-blue-600 border-2 border-blue-100 hover:border-blue-500'
+              petMode
+                ? 'bg-green-600 text-white shadow-green-500/30'
+                : 'bg-white text-green-600 border-2 border-green-100 hover:border-green-500'
             }`}
           >
-            <Bot size={18} />
-            <span>AI Tutor</span>
-            {isTutorOpen && <Sparkles size={14} className="animate-pulse" />}
+            <span>🌱</span>
+            <span>PET MODE</span>
           </button>
 
-          <div className="h-8 w-[1px] bg-slate-200 mx-2" />
-          
-          <button 
+          <button
             onClick={() => setShowIntro(true)}
             className="p-2 text-slate-400 hover:text-blue-600 transition-colors"
           >
@@ -1524,24 +1505,11 @@ export default function App() {
         </div>
       </main>
 
-      <TutorAssistant 
-        isOpen={isTutorOpen} 
-        onClose={() => setIsTutorOpen(false)} 
-        workspaceXml={workspaceXml}
-      />
-
       {/* Intro Modal */}
       <AnimatePresence>
-        {/* ── Dog / Baby Mode — full-screen universal player overlay ───── */}
-        <DogBabyMode
-          active={dogBabyMode}
-          agent={babyAgent}
-          agent2={baby1Agent}
-          onClose={() => setDogBabyMode(false)}
-        />
-
         {showIntro && (
-          <motion.div 
+          <motion.div
+            key="intro"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -1560,9 +1528,8 @@ export default function App() {
                   <h2 className="text-3xl font-bold">Welcome to Momentum Lab!</h2>
                 </div>
                 <p className="text-blue-100 text-lg">
-                  Ready to build your first game? I'm your technical co-pilot, and we're going to use 
+                  Ready to build your first game? I'm your technical co-pilot, and we're going to use
                   <strong> The Logic</strong>, <strong>The Brain</strong>, and <strong>The Paintbrush</strong> to create something amazing!
-                  Need help? Just click the <strong>AI Tutor</strong> button in the header! 🤖✨
                 </p>
               </div>
               <div className="p-8 space-y-6">
@@ -1600,6 +1567,37 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── Dog / Baby Mode — full-screen universal player overlay ───── */}
+      {/* Rendered outside AnimatePresence since it handles its own visibility */}
+      <DogBabyMode
+        active={dogBabyMode}
+        agent={babyAgent}
+        agent2={baby1Agent}
+        onClose={() => setDogBabyMode(false)}
+      />
+
+      {/* ── Pet Mode — full-screen digital pet experience ───── */}
+      <PetMode
+        active={petMode}
+        onExit={() => setPetMode(false)}
+        babyBrainSnap={babyBrainSnap}
+        baby1BrainSnap={baby1BrainSnap}
+        lastCyan0={lastCyan0}
+        lastCyan1={lastCyan1}
+        guideTarget0={guideTarget0}
+        guideTarget1={guideTarget1}
+        lastReward={lastReward}
+        last1Reward={last1Reward}
+        lastLock0={lastLock0}
+        lastLock1={lastLock1}
+        discoveryFlashes={discoveryFlashes}
+        onFlashExpired={handleFlashExpired}
+        lastStroke={lastStroke}
+        babyAgent={babyAgent}
+        baby1Agent={baby1Agent}
+        onCanvasReady={handleGEOCanvasReady}
+      />
     </div>
   );
 }
