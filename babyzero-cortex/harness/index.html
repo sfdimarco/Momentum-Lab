@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>BabyZero Visual Cortex — GEOI Harness</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+  <style>
+    body {
+      background: #0a0a0a;
+      color: #e0e0e0;
+      font-family: 'Courier New', monospace;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 { color: #00ffff; font-size: 1.2em; margin: 0 0 4px 0; }
+    .subtitle { color: #888; font-size: 0.8em; margin-bottom: 20px; }
+    .panels {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    .panel {
+      background: #111;
+      border: 1px solid #333;
+      padding: 12px;
+      border-radius: 4px;
+    }
+    .panel h2 {
+      font-size: 0.9em;
+      margin: 0 0 8px 0;
+      color: #aaa;
+    }
+    .panel h2 span.present { color: #ff4444; }
+    .panel h2 span.void    { color: #00ffff; }
+    .info {
+      margin-top: 8px;
+      font-size: 0.75em;
+      color: #666;
+      max-width: 400px;
+      line-height: 1.6;
+    }
+    .info .highlight { color: #00ffff; }
+    .controls {
+      margin: 16px 0;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    button {
+      background: #1a1a1a;
+      border: 1px solid #444;
+      color: #ccc;
+      padding: 6px 14px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.8em;
+      border-radius: 3px;
+    }
+    button:hover { background: #252525; border-color: #00ffff; color: #00ffff; }
+    button.active { background: #003333; border-color: #00ffff; color: #00ffff; }
+    .legend {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .swatch {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.72em;
+      color: #888;
+    }
+    .swatch-box {
+      width: 12px; height: 12px;
+      border-radius: 2px;
+      border: 1px solid #333;
+    }
+    #node-info {
+      margin-top: 12px;
+      padding: 8px 12px;
+      background: #0d1a1a;
+      border: 1px solid #006666;
+      border-radius: 4px;
+      font-size: 0.78em;
+      color: #aaa;
+      min-height: 40px;
+    }
+    #node-info .label { color: #00ffff; }
+    #node-info .value { color: #fff; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+
+<h1>🧠 BabyZero Visual Cortex — GEOI Harness</h1>
+<div class="subtitle">
+  Language before types. Soul before body. Color is data.
+</div>
+
+<!-- Legend -->
+<div class="legend">
+  <div class="swatch"><div class="swatch-box" style="background:#00ffff"></div>0 Cyan / Black Hole (void weight=1.0)</div>
+  <div class="swatch"><div class="swatch-box" style="background:#ff0000"></div>1 Red / Y-Loop (focal)</div>
+  <div class="swatch"><div class="swatch-box" style="background:#0000ff"></div>2 Blue / X-Loop (structural)</div>
+  <div class="swatch"><div class="swatch-box" style="background:#ffff00"></div>3 Yellow / Y-Loop (signal)</div>
+  <div class="swatch"><div class="swatch-box" style="background:#00c800"></div>4 Green / Z-Loop (complex)</div>
+  <div class="swatch"><div class="swatch-box" style="background:#ffa500"></div>5 Orange / X-Loop (warm)</div>
+  <div class="swatch"><div class="swatch-box" style="background:#800080"></div>6 Purple / Diag-Loop (diagonal)</div>
+  <div class="swatch"><div class="swatch-box" style="background:#ffc0cb"></div>7 Pink / Diag-Loop (outlier)</div>
+  <div class="swatch"><div class="swatch-box" style="background:#ffffff"></div>8 White / Gate-On (boundary)</div>
+  <div class="swatch"><div class="swatch-box" style="background:#1a1a1a;border-color:#555"></div>9 Black / Gate-Off (suppressed)</div>
+</div>
+
+<!-- Preset grids -->
+<div class="controls">
+  <span style="font-size:0.8em;color:#666">Preset:</span>
+  <button onclick="loadPreset('canonical')" id="btn-canonical" class="active">3×3 Red on Black</button>
+  <button onclick="loadPreset('blackholes')" id="btn-blackholes">4×4 Black Holes</button>
+  <button onclick="loadPreset('uniform')" id="btn-uniform">3×3 Uniform</button>
+  <button onclick="loadPreset('diagonal')" id="btn-diagonal">4×4 Diagonal Objects</button>
+  <button onclick="loadPreset('complex')" id="btn-complex">5×5 Complex</button>
+  <button onclick="loadPreset('arc1')" id="btn-arc1">ARC-style 6×6</button>
+</div>
+
+<div class="panels">
+  <div class="panel">
+    <h2>Channel 1: <span class="present">PRESENT</span> — Objects</h2>
+    <div id="canvas-present"></div>
+    <div class="info">
+      Objects rendered in Mook's synesthetic color map.<br>
+      Background cells shown at <span class="highlight">10% opacity</span>.<br>
+      Deeper nodes = smaller rects = finer structure.
+    </div>
+  </div>
+  <div class="panel">
+    <h2>Channel 4: <span class="void">VOID</span> — Negative Space</h2>
+    <div id="canvas-void"></div>
+    <div class="info">
+      <span class="highlight">0! = 1</span> — void has gravitational weight 1.0.<br>
+      Void cells glow <span class="highlight">bright cyan</span>. The shape of absence IS data.<br>
+      Void tree splits to double depth — finer resolution on what's missing.
+    </div>
+  </div>
+  <div class="panel" style="min-width:260px;max-width:300px">
+    <h2>Channel 3: <span style="color:#aaff88">MEMORY</span> — QJL Cache</h2>
+    <div id="memory-panel" style="font-size:0.78em;color:#888;line-height:1.8">
+      <div><span style="color:#aaff88">Phase 2 LIVE</span> — interference layer wired</div>
+      <div style="margin-top:6px">
+        <span style="color:#666">present cache</span>:
+        <span id="p-hits">0</span> hits / <span id="p-misses">0</span> misses
+      </div>
+      <div>
+        <span style="color:#666">void cache</span>:
+        <span id="v-hits">0</span> hits / <span id="v-misses">0</span> misses
+      </div>
+      <div style="margin-top:8px;color:#555">
+        Depth bucket legend:<br>
+        <span style="color:#00ffff">▲</span> bucket 0 — root scale (depth 0-1)<br>
+        <span style="color:#ffdd00">▲</span> bucket 1 — half scale (depth 2-3)<br>
+        <span style="color:#ff8c00">▲</span> bucket 2 — quarter scale (depth 4-5)<br>
+        <span style="color:#ff64b4">▲</span> bucket 3+ — detail scale (depth 6+)
+      </div>
+      <div style="margin-top:8px;color:#444;font-size:0.9em">
+        interference = memory_signal × void_signal<br>
+        → 0.0 everywhere until Phase 3<br>
+        (grammar seeded by solved ARC examples)
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="node-info">
+  <span class="label">Click a node</span> to inspect it.
+</div>
+
+<!-- Teaching Lab -->
+<div style="margin-top:20px">
+  <h2 style="color:#aaff88;font-size:0.95em;margin:0 0 10px 0">&#127979; Teaching Lab — Predict First, Earn the Reward</h2>
+  <div class="controls" style="gap:10px;flex-wrap:wrap;align-items:flex-start">
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <span style="font-size:0.75em;color:#666">Click to teach a transform:</span>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button onclick="teachPair(0)" id="btn-teach-0">&#128308; Red&#8594;Blue (3 ex)</button>
+        <button onclick="teachPair(1)" id="btn-teach-1">&#8596; Reflect H (2 ex)</button>
+        <button onclick="teachPair(2)" id="btn-teach-2">&#128993; Yellow&#8594;Purple (2 ex)</button>
+        <button onclick="clearGrammar()" style="border-color:#ff4444;color:#ff4444">&#10005; Reset</button>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <span style="font-size:0.75em;color:#666">Then predict on current preset:</span>
+      <button onclick="runPrediction()" style="border-color:#aaff88;color:#aaff88;padding:8px 22px;font-size:0.9em">&#128302; Predict</button>
+    </div>
+  </div>
+  <div id="teach-log" style="margin-top:8px;font-size:0.75em;color:#666;min-height:18px">No training yet.</div>
+  <div id="confidence-display" style="display:none;margin-top:8px;font-size:0.8em">
+    <span style="color:#888">Confidence: </span>
+    <span id="confidence-value" style="color:#aaff88;font-weight:bold;font-size:1.1em"></span>
+    <span style="color:#555;margin:0 6px">|</span>
+    <span id="transform-display" style="color:#aaa"></span>
+    <div style="background:#1a1a1a;border:1px solid #333;border-radius:3px;height:6px;width:180px;margin-top:5px">
+      <div id="confidence-bar-fill" style="height:100%;background:linear-gradient(90deg,#005533,#aaff88);border-radius:3px;transition:width 0.6s ease;width:0%"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Prediction panel -->
+<div class="panels" style="margin-top:16px">
+  <div class="panel">
+    <h2>&#128302; <span style="color:#aaff88">PREDICTION</span> — BabyZero's Answer</h2>
+    <div id="canvas-prediction"></div>
+    <div class="info" id="prediction-info" style="color:#555">
+      Teach BabyZero a transform, then click Predict.
+    </div>
+  </div>
+  <div class="panel" style="min-width:260px;max-width:340px">
+    <h2 style="color:#aaa">Grammar Stats</h2>
+    <div id="grammar-stats" style="font-size:0.78em;color:#666;line-height:1.9">
+      <div>Rules in engine: <span id="grammar-rule-count" style="color:#aaff88">0</span></div>
+      <div>Grammar tick: <span id="grammar-tick-display" style="color:#aaff88">0</span></div>
+      <div style="margin-top:8px;color:#444">
+        Each &#128308; Teach adds rules keyed by<br>
+        color_family + depth_bucket (position-free).<br>
+        Rules reinforce on correct predictions.<br>
+        Confidence = best rule weight (0&#8211;1.0).
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Mook's synesthetic color map ────────────────────────────────
+const COLOR_MAP = {
+  0: [0,   255, 255], // Cyan    — Black Hole
+  1: [255, 0,   0  ], // Red     — Y-Loop focal
+  2: [0,   0,   255], // Blue    — X-Loop structural
+  3: [255, 255, 0  ], // Yellow  — Y-Loop signal
+  4: [0,   200, 0  ], // Green   — Z-Loop complex
+  5: [255, 165, 0  ], // Orange  — X-Loop warm
+  6: [128, 0,   128], // Purple  — Diag-Loop hidden
+  7: [255, 192, 203], // Pink    — Diag-Loop outlier
+  8: [255, 255, 255], // White   — Gate-On boundary
+  9: [30,  30,  30 ], // Near-black — Gate-Off suppressed
+};
+
+// Node flag constants (match Rust)
+const IS_BACKGROUND   = 1 << 0;
+const IS_LEAF         = 1 << 1;
+const IS_DIAGONAL_SRC = 1 << 2;
+const IS_GATE_OFF     = 1 << 3;
+const IS_BLACK_HOLE   = 1 << 4;
+const IS_VOID_MAP     = 1 << 5;
+
+const COLOR_FAMILY_NAMES = ['BlackHole','YLoop','XLoop','ZLoop','DiagLoop','GateOn','GateOff'];
+
+// ── Preset ARC-style grids ───────────────────────────────────────
+const PRESETS = {
+  canonical: {
+    label: '3×3 Red on Black',
+    grid: [[9,9,9],[9,1,9],[9,9,9]]
+  },
+  blackholes: {
+    label: '4×4 Black Holes',
+    grid: [[0,9,9,9],[9,9,9,9],[9,9,1,9],[9,9,9,0]]
+  },
+  uniform: {
+    label: '3×3 Uniform',
+    grid: [[9,9,9],[9,9,9],[9,9,9]]
+  },
+  diagonal: {
+    label: '4×4 Diagonal Objects',
+    grid: [[1,9,9,9],[9,9,9,9],[9,9,9,9],[9,9,9,1]]
+  },
+  complex: {
+    label: '5×5 Complex',
+    grid: [
+      [9,9,1,9,9],
+      [9,2,2,2,9],
+      [1,2,0,2,1],
+      [9,2,2,2,9],
+      [9,9,1,9,9],
+    ]
+  },
+  arc1: {
+    label: 'ARC-style 6×6',
+    grid: [
+      [9,9,9,9,9,9],
+      [9,1,1,9,9,9],
+      [9,1,1,9,9,9],
+      [9,9,9,0,9,9],
+      [9,9,9,9,3,9],
+      [9,9,9,9,9,9],
+    ]
+  }
+};
+
+// ── Phase 2: QJL Cache Layer (D2) ───────────────────────────────
+// Mirrors Rust qjl_cache_key() — same key structure, u64 as BigInt.
+// No grammar data yet (Phase 3) — interference is 0.0 everywhere.
+// This wires the framework so Phase 3 can populate it.
+
+function qjlCacheKey(depth, families, zOrder) {
+  const depthBucket = BigInt(Math.floor(depth / 2));
+  const f0 = BigInt(families[0] || 0);
+  const f1 = BigInt(families[1] || 0);
+  const f2 = BigInt(families[2] || 0);
+  const familyHash = (f0 << 8n) | (f1 << 4n) | f2;
+  const zBucket = BigInt(zOrder) >> 4n;
+  return (depthBucket << 52n) | (familyHash << 40n) | (zBucket & 0x000FFFFFFFFFFFFFn);
+}
+
+// Depth-bucket color for visual quantization indicator
+// Same buckets as Rust: depth/2 → 0=root(cyan), 1=half(yellow), 2=quarter(orange), 3+=detail(pink)
+function depthBucketColor(depth) {
+  const b = Math.floor(depth / 2);
+  return b === 0 ? [0,255,255,120] : b === 1 ? [255,220,0,100] : b === 2 ? [255,140,0,80] : [255,100,180,60];
+}
+
+// Placeholder interference score — 0.0 until grammar is seeded in Phase 3.
+// Returns { memorySignal, voidSignal, interference } for a leaf node.
+function getInterference(node) {
+  return { memorySignal: 0.0, voidSignal: 0.0, interference: 0.0 };
+}
+
+
+// ── Phase 3: In-Browser Grammar Engine ──────────────────────────
+// Mirrors the Rust grammar engine — position-independent color-family keys.
+// Rules stored as: depthBucket_colorFamily → {transform, weight, count, tick}
+
+let grammarEngine = {};
+let grammarTick   = 0;
+
+function grammarRuleKey(depth, colorFamily) {
+  return `${Math.floor(depth/2)}_${colorFamily}`;
+}
+function gridsEqual(a, b) {
+  return a.length === b.length &&
+    a.every((row,r) => row.length === b[r].length && row.every((v,c) => v === b[r][c]));
+}
+function detectTransform(inputGrid, outputGrid) {
+  if (inputGrid.length !== outputGrid.length) return { type: 'Unknown' };
+  // Color substitution
+  const map = {}; let consistent = true;
+  for (let r = 0; r < inputGrid.length && consistent; r++)
+    for (let c = 0; c < inputGrid[r].length && consistent; c++) {
+      const vi = inputGrid[r][c], vo = outputGrid[r][c];
+      if (map[vi] === undefined) map[vi] = vo;
+      else if (map[vi] !== vo) consistent = false;
+    }
+  if (consistent)
+    for (const [from, to] of Object.entries(map))
+      if (parseInt(from) !== to) return { type: 'ColorSubstitution', from: parseInt(from), to };
+  // Horizontal reflection
+  if (gridsEqual(inputGrid.map(row => [...row].reverse()), outputGrid))
+    return { type: 'Reflection', axis: 'Horizontal' };
+  // Vertical reflection
+  if (gridsEqual([...inputGrid].reverse(), outputGrid))
+    return { type: 'Reflection', axis: 'Vertical' };
+  return { type: 'Unknown' };
+}
+function applyTransformJS(grid, transform) {
+  if (!transform || transform.type === 'Unknown') return grid.map(r => [...r]);
+  if (transform.type === 'ColorSubstitution')
+    return grid.map(row => row.map(v => v === transform.from ? transform.to : v));
+  if (transform.type === 'Reflection') {
+    if (transform.axis === 'Horizontal') return grid.map(row => [...row].reverse());
+    if (transform.axis === 'Vertical')   return [...grid.map(r=>[...r])].reverse();
+  }
+  return grid.map(r => [...r]);
+}
+function seedFromExample(inputGrid, outputGrid) {
+  const transform = detectTransform(inputGrid, outputGrid);
+  const bg    = detectBackground(inputGrid);
+  const nodes = buildQuadtree(inputGrid, bg, MAX_DEPTH, false);
+  const leaves = collectLeaves(nodes);
+  let seeded = 0;
+  for (const node of leaves) {
+    if (node.nodeFlags & IS_BACKGROUND) continue;
+    const key = grammarRuleKey(node.depth, node.colorFamily);
+    if (grammarEngine[key]) {
+      grammarEngine[key].weight = Math.min(1.0, grammarEngine[key].weight + 0.15);
+      grammarEngine[key].count++;
+      grammarEngine[key].tick = grammarTick;
+    } else {
+      grammarEngine[key] = { transform, weight: 0.65, count: 1, tick: grammarTick };
+      seeded++;
+    }
+  }
+  grammarTick++;
+  return { transform, seeded, totalRules: Object.keys(grammarEngine).length };
+}
+function predictGridJS(inputGrid) {
+  const bg    = detectBackground(inputGrid);
+  const nodes = buildQuadtree(inputGrid, bg, MAX_DEPTH, false);
+  const leaves = collectLeaves(nodes);
+  let bestWeight = 0, bestTransform = null, rulesChecked = 0;
+  for (const node of leaves) {
+    if (node.nodeFlags & IS_BACKGROUND) continue;
+    const key  = grammarRuleKey(node.depth, node.colorFamily);
+    const rule = grammarEngine[key];
+    rulesChecked++;
+    if (rule && rule.weight > bestWeight) {
+      bestWeight = rule.weight; bestTransform = rule.transform;
+    }
+  }
+  const predicted = bestTransform
+    ? applyTransformJS(inputGrid, bestTransform)
+    : inputGrid.map(r=>[...r]);
+  return { grid: predicted, transform: bestTransform, confidence: bestWeight, rulesChecked };
+}
+
+// ── In-browser GEOI encoder ──────────────────────────────────────
+// Mirrors the Rust encoder logic exactly (for harness use before WASM)
+
+function colorFamilyFromValue(v) {
+  if (v === 0) return 0; // BlackHole
+  if (v === 1 || v === 3) return 1; // YLoop
+  if (v === 2 || v === 5) return 2; // XLoop
+  if (v === 4) return 3; // ZLoop
+  if (v === 6 || v === 7) return 4; // DiagLoop
+  if (v === 8) return 5; // GateOn
+  return 6; // GateOff
+}
+
+function detectBackground(grid) {
+  const counts = new Array(10).fill(0);
+  for (const row of grid) for (const v of row) if (v >= 0 && v <= 9) counts[v]++;
+  let maxCount = 0, bgVal = 0;
+  for (let i = 0; i < 10; i++) {
+    if (counts[i] > maxCount) { maxCount = counts[i]; bgVal = i; }
+  }
+  return bgVal;
+}
+
+function dominantValue(grid, x0, y0, x1, y1) {
+  const counts = new Array(10).fill(0);
+  for (let r = y0; r < y1; r++)
+    for (let c = x0; c < x1; c++) {
+      const v = grid[r][c]; if (v >= 0 && v <= 9) counts[v]++;
+    }
+  let max = 0, dom = 0;
+  for (let i = 0; i < 10; i++) { if (counts[i] > max) { max = counts[i]; dom = i; } }
+  return dom;
+}
+
+function isUniform(grid, x0, y0, x1, y1) {
+  const first = colorFamilyFromValue(grid[y0][x0]);
+  for (let r = y0; r < y1; r++)
+    for (let c = x0; c < x1; c++)
+      if (colorFamilyFromValue(grid[r][c]) !== first) return false;
+  return true;
+}
+
+// Build quadtree returning flat node list
+function buildQuadtree(grid, background, maxDepth, isVoid) {
+  const nodes = [];
+  function buildNode(x0, y0, x1, y1, depth) {
+    const dom = dominantValue(grid, x0, y0, x1, y1);
+    const uniform = isUniform(grid, x0, y0, x1, y1);
+    const tooSmall = (x1 - x0) <= 1 || (y1 - y0) <= 1;
+    const atMax = depth >= maxDepth;
+    let flags = 0;
+    if (dom === background) flags |= IS_BACKGROUND;
+    if (dom === 9) flags |= IS_GATE_OFF;
+    if (dom === 0) flags |= IS_BLACK_HOLE;
+    if (isVoid) flags |= IS_VOID_MAP;
+    const isLeaf = uniform || tooSmall || atMax;
+    if (isLeaf) flags |= IS_LEAF;
+    const node = { x0, y0, x1, y1, depth, dominantValue: dom,
+                   colorFamily: colorFamilyFromValue(dom), nodeFlags: flags,
+                   decayWeight: 1.0, children: [] };
+    nodes.push(node);
+    if (!isLeaf) {
+      const mx = x0 + Math.floor((x1 - x0) / 2);
+      const my = y0 + Math.floor((y1 - y0) / 2);
+      buildNode(x0, y0, mx, my, depth + 1); // TL
+      buildNode(mx, y0, x1, my, depth + 1); // TR
+      buildNode(x0, my, mx, y1, depth + 1); // BL
+      buildNode(mx, my, x1, y1, depth + 1); // BR
+    }
+  }
+  const effectiveMax = isVoid ? Math.min(maxDepth * 2, 16) : maxDepth;
+  buildNode(0, 0, grid[0].length, grid.length, 0, effectiveMax);
+  // re-run with correct maxDepth
+  nodes.length = 0;
+  function buildNode2(x0, y0, x1, y1, depth) {
+    const dom = dominantValue(grid, x0, y0, x1, y1);
+    const uniform = isUniform(grid, x0, y0, x1, y1);
+    const tooSmall = (x1 - x0) <= 1 || (y1 - y0) <= 1;
+    const atMax = depth >= effectiveMax;
+    let flags = 0;
+    if (dom === background) flags |= IS_BACKGROUND;
+    if (dom === 9) flags |= IS_GATE_OFF;
+    if (dom === 0) flags |= IS_BLACK_HOLE;
+    if (isVoid) flags |= IS_VOID_MAP;
+    const isLeaf = uniform || tooSmall || atMax;
+    if (isLeaf) flags |= IS_LEAF;
+    const node = { x0, y0, x1, y1, depth, dominantValue: dom,
+                   colorFamily: colorFamilyFromValue(dom), nodeFlags: flags,
+                   decayWeight: 1.0, children: [] };
+    const idx = nodes.length;
+    nodes.push(node);
+    if (!isLeaf) {
+      const mx = x0 + Math.floor((x1 - x0) / 2);
+      const my = y0 + Math.floor((y1 - y0) / 2);
+      buildNode2(x0, y0, mx, my, depth + 1);
+      buildNode2(mx, y0, x1, my, depth + 1);
+      buildNode2(x0, my, mx, y1, depth + 1);
+      buildNode2(mx, my, x1, y1, depth + 1);
+    }
+    return idx;
+  }
+  buildNode2(0, 0, grid[0].length, grid.length, 0);
+  return nodes;
+}
+
+// Collect only leaf nodes
+function collectLeaves(nodes) {
+  return nodes.filter(n => n.nodeFlags & IS_LEAF);
+}
+
+// ── State ────────────────────────────────────────────────────────
+let currentPreset = 'canonical';
+let presentNodes = [];
+let voidNodes    = [];
+let background   = 9;
+let gridW = 3, gridH = 3;
+let lastClickedNode = null;
+
+const CANVAS_SIZE = 360;
+const MAX_DEPTH   = 5;
+
+function processGrid(grid) {
+  gridW = grid[0].length;
+  gridH = grid.length;
+  background = detectBackground(grid);
+
+  // Build void grid (0→255, else→0)
+  // Void grid: 0-cells (black holes) stay as 0 = the OBJECTS of void world.
+  // Non-zero cells become 9 (GateOff/ground) = suppressed background in void world.
+  // This keeps all values in 0-9 so dominantValue() counts correctly.
+  // Semantics: in void world, 0 is the focal point (0!=1), 9 is the ground.
+  const voidGrid = grid.map(row => row.map(v => v === 0 ? 0 : 9));
+  const voidBg = 9; // most cells are 9 (occupied=suppressed in void world)
+
+  presentNodes = buildQuadtree(grid,     background, MAX_DEPTH, false);
+  voidNodes    = buildQuadtree(voidGrid, voidBg,     MAX_DEPTH, true);
+}
+
+// ── p5.js sketches ───────────────────────────────────────────────
+
+function makeSketch(getNodes, isVoidCanvas, parentId) {
+  return function(p) {
+    p.setup = function() {
+      const cnv = p.createCanvas(CANVAS_SIZE, CANVAS_SIZE);
+      cnv.parent(parentId || (isVoidCanvas ? 'canvas-void' : 'canvas-present'));
+      cnv.mouseClicked(function() { handleClick(p, getNodes(), isVoidCanvas); });
+    };
+
+    p.draw = function() {
+      p.background(10, 10, 10);
+      const nodes = getNodes();
+      const leaves = collectLeaves(nodes);
+      const cellW = CANVAS_SIZE / gridW;
+      const cellH = CANVAS_SIZE / gridH;
+
+      for (const node of leaves) {
+        const px = node.x0 * cellW;
+        const py = node.y0 * cellH;
+        const pw = (node.x1 - node.x0) * cellW;
+        const ph = (node.y1 - node.y0) * cellH;
+
+        let r, g, b, alpha;
+
+        if (isVoidCanvas) {
+          // Void world: value 0 = the black hole object (GLOW CYAN, full weight).
+          //             value 9 = occupied/suppressed ground (near-invisible).
+          // 0! = 1 — the void has gravitational weight. It glows louder than objects.
+          if (node.dominantValue === 0) {
+            [r, g, b] = [0, 255, 255]; // BRIGHT CYAN — the void SCREAMS
+            alpha = 255;
+          } else {
+            // Occupied space — suppressed, nearly invisible in void world
+            [r, g, b] = [15, 15, 25];
+            alpha = 60;
+          }
+        } else {
+          // Present canvas: use synesthetic color map
+          const val = node.dominantValue;
+          const col = COLOR_MAP[val] || [128, 128, 128];
+          [r, g, b] = col;
+          // Background cells at low opacity; objects at full
+          const isBg = node.nodeFlags & IS_BACKGROUND;
+          alpha = isBg ? 40 : 220;
+        }
+
+        // Highlight clicked node
+        if (lastClickedNode && lastClickedNode === node) {
+          p.stroke(255, 255, 0);
+          p.strokeWeight(2);
+        } else {
+          p.stroke(30, 30, 30);
+          p.strokeWeight(0.5);
+        }
+
+        p.fill(r, g, b, alpha);
+        p.rect(px, py, pw - 1, ph - 1, 2);
+
+        // D2: depth-bucket corner indicator (QJL quantization visualization)
+        // A small triangle in the top-left corner shows which depth bucket this node is in.
+        // Bucket 0 (root scale) = cyan, 1 (half scale) = yellow, 2 (quarter) = orange, 3+ = pink
+        if (pw > 10 && ph > 10) {
+          const [br, bg2, bb, ba] = depthBucketColor(node.depth);
+          p.noStroke();
+          p.fill(br, bg2, bb, ba);
+          const ts = Math.min(pw * 0.28, ph * 0.28, 8); // triangle size
+          p.triangle(px + 1, py + 1, px + ts + 1, py + 1, px + 1, py + ts + 1);
+        }
+
+        // Label small leaf value if large enough
+        if (pw > 24 && ph > 16 && !(node.nodeFlags & IS_BACKGROUND)) {
+          p.fill(255, 255, 255, 180);
+          p.noStroke();
+          p.textSize(9);
+          p.textAlign(p.CENTER, p.CENTER);
+          p.text(node.dominantValue, px + pw/2, py + ph/2);
+        }
+      }
+
+      // Draw depth-grid guides
+      p.stroke(40, 40, 40);
+      p.strokeWeight(0.5);
+      for (let i = 0; i <= gridW; i++) p.line(i * cellW, 0, i * cellW, CANVAS_SIZE);
+      for (let i = 0; i <= gridH; i++) p.line(0, i * cellH, CANVAS_SIZE, i * cellH);
+
+      // Void-silent overlay: if no 0-cells exist, void channel is correctly empty
+      if (isVoidCanvas) {
+        const voidActive = leaves.filter(n => n.dominantValue === 0).length;
+        if (voidActive === 0) {
+          p.noStroke();
+          p.fill(0, 180, 180, 30);
+          p.rect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+          p.fill(0, 220, 220, 160);
+          p.textSize(13);
+          p.textAlign(p.CENTER, p.CENTER);
+          p.text('∅ void silent', CANVAS_SIZE / 2, CANVAS_SIZE / 2 - 10);
+          p.textSize(9);
+          p.fill(0, 180, 180, 100);
+          p.text('no 0-cells in grid', CANVAS_SIZE / 2, CANVAS_SIZE / 2 + 10);
+          p.text('0 ≠ 1  ·  void has nothing to scream', CANVAS_SIZE / 2, CANVAS_SIZE / 2 + 24);
+        }
+      }
+    };
+  };
+}
+
+function handleClick(p, nodes, isVoidCanvas) {
+  const leaves = collectLeaves(nodes);
+  const cellW = CANVAS_SIZE / gridW;
+  const cellH = CANVAS_SIZE / gridH;
+  const mx = p.mouseX, my = p.mouseY;
+
+  for (const node of leaves) {
+    const px = node.x0 * cellW, py = node.y0 * cellH;
+    const pw = (node.x1 - node.x0) * cellW, ph = (node.y1 - node.y0) * cellH;
+    if (mx >= px && mx < px + pw && my >= py && my < py + ph) {
+      lastClickedNode = node;
+      const flags = [];
+      if (node.nodeFlags & IS_BACKGROUND)   flags.push('IS_BACKGROUND');
+      if (node.nodeFlags & IS_LEAF)         flags.push('IS_LEAF');
+      if (node.nodeFlags & IS_GATE_OFF)     flags.push('IS_GATE_OFF');
+      if (node.nodeFlags & IS_BLACK_HOLE)   flags.push('IS_BLACK_HOLE');
+      if (node.nodeFlags & IS_VOID_MAP)     flags.push('IS_VOID_MAP');
+      if (node.nodeFlags & IS_DIAGONAL_SRC) flags.push('IS_DIAGONAL_SRC');
+      const famName = COLOR_FAMILY_NAMES[node.colorFamily] || '?';
+      // D2: compute QJL key for this node (mirrors Rust qjl_cache_key)
+      const families = [node.colorFamily, 0, 0]; // single-node key for harness
+      const qjlKey = qjlCacheKey(node.depth, families, 0n); // z-order not available in JS node yet
+      const depthBucket = Math.floor(node.depth / 2);
+      const bucketNames = ['root-scale','half-scale','quarter-scale','detail-scale'];
+      const bucketLabel = bucketNames[Math.min(depthBucket, 3)];
+      const intf = getInterference(node);
+      document.getElementById('node-info').innerHTML =
+        `<span class="label">Node</span>: ` +
+        `<span class="value">val=${node.dominantValue}</span>  ` +
+        `<span class="label">family</span>: <span class="value">${famName}</span>  ` +
+        `<span class="label">depth</span>: <span class="value">${node.depth}</span>  ` +
+        `<span class="label">region</span>: <span class="value">[${node.x0},${node.y0}..${node.x1},${node.y1}]</span>  ` +
+        `<span class="label">decay_weight</span>: <span class="value">${node.decayWeight.toFixed(3)}</span>  ` +
+        `<span class="label">flags</span>: <span class="value">${flags.join(' | ') || 'none'}</span>  ` +
+        `<span class="label">canvas</span>: <span class="value">${isVoidCanvas ? 'VOID' : 'PRESENT'}</span>` +
+        `<br><span class="label">QJL bucket</span>: <span class="value">depth_bucket=${depthBucket} (${bucketLabel})</span>  ` +
+        `<span class="label">interference</span>: <span class="value">${intf.interference.toFixed(4)}</span>  ` +
+        `<span class="label">memory_signal</span>: <span class="value">${intf.memorySignal.toFixed(4)}</span>  ` +
+        `<span class="label">void_signal</span>: <span class="value">${intf.voidSignal.toFixed(4)}</span>` +
+        `  <span style="color:#444;font-size:0.9em;">(interference=0 until grammar trained in Phase 3)</span>`;
+      break;
+    }
+  }
+}
+
+function loadPreset(name) {
+  currentPreset = name;
+  document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
+  document.getElementById('btn-' + name).classList.add('active');
+  processGrid(PRESETS[name].grid);
+  lastClickedNode = null;
+  document.getElementById('node-info').innerHTML =
+    '<span class="label">Click a node</span> to inspect it.';
+}
+
+
+// ── Teaching Lab Data + Functions ───────────────────────────────
+const TRAINING_PAIRS = [
+  [  // 0: Red→Blue substitution
+    { input: [[9,9,9],[9,1,9],[9,9,9]], output: [[9,9,9],[9,2,9],[9,9,9]] },
+    { input: [[1,9,9],[9,9,9],[9,9,1]], output: [[2,9,9],[9,9,9],[9,9,2]] },
+    { input: [[9,9,9,9],[1,1,1,9],[9,9,9,9],[9,9,9,9]], output: [[9,9,9,9],[2,2,2,9],[9,9,9,9],[9,9,9,9]] },
+  ],
+  [  // 1: Horizontal reflection
+    { input: [[1,9,9],[2,9,9],[3,9,9]], output: [[9,9,1],[9,9,2],[9,9,3]] },
+    { input: [[1,1,9,9],[9,9,9,9],[9,9,9,9],[9,9,2,2]], output: [[9,9,1,1],[9,9,9,9],[9,9,9,9],[2,2,9,9]] },
+  ],
+  [  // 2: Yellow→Purple substitution
+    { input: [[9,3,9],[3,9,3],[9,3,9]], output: [[9,6,9],[6,9,6],[9,6,9]] },
+    { input: [[3,9,9,3],[9,9,9,9],[9,3,3,9]], output: [[6,9,9,6],[9,9,9,9],[9,6,6,9]] },
+  ],
+];
+
+let predictionNodes = [];
+const PAIR_LABELS = ['Red\u2192Blue substitution','Horizontal reflection','Yellow\u2192Purple substitution'];
+
+function updateGrammarStats() {
+  document.getElementById('grammar-rule-count').textContent = Object.keys(grammarEngine).length;
+  document.getElementById('grammar-tick-display').textContent = grammarTick;
+}
+
+function teachPair(idx) {
+  document.querySelectorAll('[id^="btn-teach-"]').forEach(b => b.classList.remove('active'));
+  document.getElementById('btn-teach-' + idx).classList.add('active');
+  const pairs = TRAINING_PAIRS[idx];
+  let lastResult;
+  for (const { input, output } of pairs) lastResult = seedFromExample(input, output);
+  const tType = lastResult.transform.type;
+  const tDetail = lastResult.transform.from !== undefined
+    ? ` (${lastResult.transform.from}\u2192${lastResult.transform.to})` : '';
+  document.getElementById('teach-log').innerHTML =
+    `<span style="color:#aaff88">\u2713 Taught:</span> ${PAIR_LABELS[idx]} \u2014 ` +
+    `<b>${pairs.length}</b> examples \u00b7 grammar rules: <b>${lastResult.totalRules}</b> \u00b7 ` +
+    `detected: <b>${tType}${tDetail}</b>`;
+  updateGrammarStats();
+}
+
+function clearGrammar() {
+  grammarEngine = {}; grammarTick = 0; predictionNodes = [];
+  document.querySelectorAll('[id^="btn-teach-"]').forEach(b => b.classList.remove('active'));
+  document.getElementById('teach-log').innerHTML = '<span style="color:#ff4444">Grammar cleared.</span>';
+  document.getElementById('confidence-display').style.display = 'none';
+  document.getElementById('prediction-info').textContent = 'Teach BabyZero a transform, then click Predict.';
+  document.getElementById('prediction-info').style.color = '#555';
+  updateGrammarStats();
+}
+
+function runPrediction() {
+  const grid = PRESETS[currentPreset].grid;
+  const result = predictGridJS(grid);
+  predictionNodes = buildQuadtree(result.grid, detectBackground(result.grid), MAX_DEPTH, false);
+
+  document.getElementById('confidence-display').style.display = 'block';
+  document.getElementById('confidence-value').textContent = (result.confidence * 100).toFixed(1) + '%';
+  document.getElementById('confidence-bar-fill').style.width = (result.confidence * 100).toFixed(1) + '%';
+
+  const tLabel = result.transform
+    ? `${result.transform.type}${result.transform.from !== undefined ? ` (${result.transform.from}\u2192${result.transform.to})` : ''}`
+    : 'Unknown \u2014 no grammar yet';
+  document.getElementById('transform-display').textContent = tLabel;
+
+  if (result.confidence > 0) {
+    document.getElementById('prediction-info').innerHTML =
+      `<span style="color:#aaff88">Confidence: ${(result.confidence*100).toFixed(1)}%</span>  ` +
+      `\u00b7 rules checked: ${result.rulesChecked}  \u00b7 ${tLabel}<br>` +
+      `<span style="color:#555;font-size:0.9em">Correct? Teach more examples to reinforce.</span>`;
+  } else {
+    document.getElementById('prediction-info').innerHTML =
+      '<span style="color:#ff6644">No prediction</span> \u2014 teach BabyZero a transform first!';
+  }
+}
+
+// Boot
+processGrid(PRESETS.canonical.grid);
+new p5(makeSketch(() => presentNodes, false));
+new p5(makeSketch(() => voidNodes,    true));
+new p5(makeSketch(() => predictionNodes, false, 'canvas-prediction'));
+
+</script>
+</body>
+</html>

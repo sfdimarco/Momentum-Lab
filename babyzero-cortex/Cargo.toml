@@ -1,0 +1,17 @@
+[package]
+name = "babyzero-cortex"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+morton-encoding = "2.0.1"
+serde        = { version = "1", features = ["derive"] }
+serde_json   = "1"
+
+# Performance profile — same as universe-wasm
+# DO NOT enable until Phase 1 success criteria are proven in debug mode
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"

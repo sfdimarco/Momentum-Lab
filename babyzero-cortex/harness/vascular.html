@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>BabyZero Vascular Network — Grammar Vis</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+  <style>
+    body {
+      background: #0a0a0a;
+      color: #e0e0e0;
+      font-family: 'Courier New', monospace;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      color: #00ffff;
+      font-size: 1.3em;
+      margin: 0 0 4px 0;
+    }
+    .subtitle {
+      color: #888;
+      font-size: 0.85em;
+      margin-bottom: 16px;
+    }
+    #canvas-container {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    .stats-panel {
+      background: #111;
+      border: 1px solid #333;
+      padding: 14px;
+      border-radius: 4px;
+      margin-bottom: 16px;
+      max-width: 600px;
+    }
+    .stats-panel h2 {
+      font-size: 0.9em;
+      margin: 0 0 10px 0;
+      color: #aaa;
+    }
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      font-size: 0.85em;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    .stat-row:last-child {
+      border-bottom: none;
+    }
+    .stat-label {
+      color: #00ffff;
+    }
+    .stat-value {
+      color: #aaff88;
+      font-weight: bold;
+    }
+    .info {
+      background: #0d1a1a;
+      border-left: 3px solid #00ffff;
+      padding: 10px 12px;
+      margin-top: 12px;
+      font-size: 0.8em;
+      color: #888;
+      line-height: 1.6;
+    }
+    .hover-info {
+      margin-top: 12px;
+      padding: 8px 12px;
+      background: #1a0a1a;
+      border: 1px solid #663366;
+      border-radius: 3px;
+      font-size: 0.78em;
+      color: #aaa;
+      min-height: 24px;
+      max-width: 500px;
+    }
+    .hover-key { color: #ff6699; }
+    .hover-behavior { color: #88ff88; }
+    .hover-conf { color: #ffaa00; }
+  </style>
+</head>
+<body>
+
+<h1>🧬 BabyZero Vascular Network</h1>
+<div class="subtitle">Grammar visualization — violet substrate, red reinforcement veins, cyan cells with confidence pupils</div>
+
+<div id="canvas-container"></div>
+
+<div class="stats-panel">
+  <h2>Grammar State</h2>
+  <div class="stat-row">
+    <span class="stat-label">Total Sessions:</span>
+    <span class="stat-value" id="stat-sessions">—</span>
+  </div>
+  <div class="stat-row">
+    <span class="stat-label">Relation Keys (Orbs):</span>
+    <span class="stat-value" id="stat-keys">—</span>
+  </div>
+  <div class="stat-row">
+    <span class="stat-label">Behavior Hypotheses (Cells):</span>
+    <span class="stat-value" id="stat-hyps">—</span>
+  </div>
+  <div class="stat-row">
+    <span class="stat-label">Avg Confidence:</span>
+    <span class="stat-value" id="stat-avgconf">—</span>
+  </div>
+  <div class="stat-row">
+    <span class="stat-label">Max Evidence Count:</span>
+    <span class="stat-value" id="stat-maxev">—</span>
+  </div>
+  <div class="stat-row">
+    <span class="stat-label">Unknown Candidates:</span>
+    <span class="stat-value" id="stat-unknowns">—</span>
+  </div>
+  <div class="info">
+    Each <span style="color:#00c8e0">cyan cell</span> orbits a <span style="color:#ffc040">glowing orb</span>.
+    <span style="color:#ff3040">Red pupil brightness</span> = confidence score.
+    <span style="color:#ff4060">Red veins pulse</span> between cells that share behavior types.
+  </div>
+  <div class="hover-info" id="hover-info">
+    Hover over a cell to see details.
+  </div>
+</div>
+
+<script>
+// ── Synesthetic color palette ────────────────────────────────────
+const SYNESTHETIC_COLORS = {
+  0: [0,   255, 255], // Cyan    — Black Hole
+  1: [255, 0,   0  ], // Red     — Y-Loop focal
+  2: [0,   0,   255], // Blue    — X-Loop structural
+  3: [255, 255, 0  ], // Yellow  — Y-Loop signal
+  4: [0,   200, 0  ], // Green   — Z-Loop complex
+  5: [255, 165, 0  ], // Orange  — X-Loop warm
+  6: [128, 0,   128], // Purple  — Diag-Loop hidden
+  7: [255, 192, 203], // Pink    — Diag-Loop outlier
+  8: [255, 255, 255], // White   — Gate-On boundary
+  9: [30,  30,  30 ], // Near-black — Gate-Off suppressed
+};
+
+// Global state
+let grammarData = null;
+let unknownsData = null;     // babyzero_unknowns.json
+let relationKeys = [];
+let behaviorHypotheses = [];
+let orbPositions = {};
+let hoveredCell = null;
+let canvasWidth = Math.min(900, window.innerWidth - 40);
+let canvasHeight = 600;
+
+// Fetch the unknowns JSON
+async function loadUnknowns() {
+  try {
+    const response = await fetch('../babyzero_unknowns.json?t=' + Date.now());
+    if (!response.ok) throw new Error('Unknowns not available');
+    unknownsData = await response.json();
+  } catch (err) {
+    console.warn('Unknowns not loaded:', err.message);
+    unknownsData = null;
+  }
+}
+
+// Fetch the grammar JSON
+async function loadGrammar() {
+  try {
+    const response = await fetch('babyzero_grammar.json?t=' + Date.now());
+    if (!response.ok) throw new Error('Failed to fetch grammar');
+    grammarData = await response.json();
+    parseGrammar();
+    updateStats();
+  } catch (err) {
+    console.warn('Grammar not loaded:', err.message);
+    grammarData = null;
+  }
+}
+
+function parseGrammar() {
+  if (!grammarData || !grammarData.entries) return;
+
+  relationKeys = [];
+  behaviorHypotheses = [];
+
+  // Build RelationKey map: unique keys and their hypotheses
+  const keyMap = new Map();
+
+  for (const [relationKey, hypotheses] of grammarData.entries) {
+    const keyStr = JSON.stringify(relationKey);
+    if (!keyMap.has(keyStr)) {
+      keyMap.set(keyStr, { key: relationKey, hypotheses: [] });
+      relationKeys.push(relationKey);
+    }
+    const entry = keyMap.get(keyStr);
+    if (Array.isArray(hypotheses)) {
+      entry.hypotheses.push(...hypotheses);
+      behaviorHypotheses.push(...hypotheses);
+    }
+  }
+
+  // Assign force-directed positions (simple radial layout)
+  assignOrbPositions();
+}
+
+function assignOrbPositions() {
+  const centerX = canvasWidth / 2;
+  const centerY = canvasHeight / 2;
+  const baseRadius = 150;
+
+  relationKeys.forEach((key, idx) => {
+    const angle = (idx / Math.max(relationKeys.length, 1)) * 2 * Math.PI;
+    const x = centerX + baseRadius * Math.cos(angle);
+    const y = centerY + baseRadius * Math.sin(angle);
+    orbPositions[JSON.stringify(key)] = { x, y };
+  });
+}
+
+function updateStats() {
+  const sessions = grammarData ? grammarData.total_sessions : 0;
+  const nKeys = relationKeys.length;
+  const nHyps = behaviorHypotheses.length;
+
+  let avgConf = 0;
+  let maxEv = 0;
+  if (nHyps > 0) {
+    const totalConf = behaviorHypotheses.reduce((sum, h) => sum + (h.confidence || 0), 0);
+    avgConf = totalConf / nHyps;
+    maxEv = Math.max(...behaviorHypotheses.map(h => h.evidence_count || 0));
+  }
+
+  document.getElementById('stat-sessions').textContent = sessions;
+  document.getElementById('stat-keys').textContent = nKeys;
+  document.getElementById('stat-hyps').textContent = nHyps;
+  document.getElementById('stat-avgconf').textContent = (avgConf * 100).toFixed(1) + '%';
+  document.getElementById('stat-maxev').textContent = maxEv;
+
+  // Unknown candidate count
+  let nCandidates = 0;
+  if (unknownsData && unknownsData.patterns) {
+    const THRESHOLD = 5;
+    nCandidates = Object.values(unknownsData.patterns)
+      .filter(recs => recs.length >= THRESHOLD).length;
+  }
+  document.getElementById('stat-unknowns').textContent =
+    nCandidates > 0 ? `${nCandidates} 🌱` : (unknownsData ? '0' : '—');
+
+  if (nKeys === 0 && nHyps === 0) {
+    document.getElementById('hover-info').innerHTML =
+      '<span style="color:#ff6699">No substrate yet</span> — run the cortex first.';
+  }
+}
+
+// ── p5.js Sketch ────────────────────────────────────────────────
+function sketch(p) {
+  // Animation state
+  let pulseTime = 0;
+
+  p.setup = function() {
+    const container = document.getElementById('canvas-container');
+    const cnv = p.createCanvas(canvasWidth, canvasHeight);
+    cnv.parent('canvas-container');
+  };
+
+  p.draw = function() {
+    pulseTime += 0.016; // ~60fps
+
+    // ── Background: Violet gradient substrate ──────────────────────
+    const gradient = p.drawingContext.createLinearGradient(0, 0, 0, canvasHeight);
+    gradient.addColorStop(0, '#2a1a3e');
+    gradient.addColorStop(1, '#4a2a6e');
+    p.drawingContext.fillStyle = gradient;
+    p.drawingContext.fillRect(0, 0, canvasWidth, canvasHeight);
+
+    // ── Layer 1: Grey grate underlay ──────────────────────────────
+    p.stroke(64, 64, 72);
+    p.strokeWeight(1);
+    p.fill(64, 64, 72, 20);
+    const gridSize = 40;
+    for (let x = 0; x <= canvasWidth; x += gridSize) {
+      p.line(x, 0, x, canvasHeight);
+    }
+    for (let y = 0; y <= canvasHeight; y += gridSize) {
+      p.line(0, y, canvasWidth, y);
+    }
+
+    if (!grammarData || relationKeys.length === 0) {
+      // Show "no substrate yet" message
+      p.fill(0, 200, 200, 150);
+      p.textSize(16);
+      p.textAlign(p.CENTER, p.CENTER);
+      p.text('No substrate yet', canvasWidth / 2, canvasHeight / 2 - 20);
+      p.textSize(12);
+      p.fill(136, 136, 136, 120);
+      p.text('Run the BabyZero cortex to populate the grammar', canvasWidth / 2, canvasHeight / 2 + 20);
+      return;
+    }
+
+    // ── Layer 2: Glowing orbs (RelationKey centers) ────────────────
+    const orbMap = new Map();
+    relationKeys.forEach((key, idx) => {
+      const keyStr = JSON.stringify(key);
+      const pos = orbPositions[keyStr] || { x: canvasWidth / 2, y: canvasHeight / 2 };
+
+      // Count hypotheses for this key
+      const hypCount = grammarData.entries[idx]?.[1]?.length || 0;
+      const orbRadius = 6 + hypCount * 1.5;
+
+      // Glow (warm gold with cyan halo)
+      p.noStroke();
+      p.fill(255, 192, 64, 30);
+      p.circle(pos.x, pos.y, orbRadius * 4);
+      p.fill(0, 200, 224, 40);
+      p.circle(pos.x, pos.y, orbRadius * 3);
+
+      // Core orb
+      p.fill(255, 192, 64);
+      p.circle(pos.x, pos.y, orbRadius);
+
+      orbMap.set(keyStr, { pos, radius: orbRadius, keyIdx: idx });
+    });
+
+    // ── Layer 3: Cyan cells with red pupils (BehaviorHypotheses) ───
+    const cellMap = new Map();
+    let cellIdx = 0;
+
+    relationKeys.forEach((key, keyIdx) => {
+      const keyStr = JSON.stringify(key);
+      const hypotheses = grammarData.entries[keyIdx]?.[1] || [];
+      const orbInfo = orbMap.get(keyStr);
+      if (!orbInfo) return;
+
+      const { pos: orbPos, radius: orbRadius } = orbInfo;
+      const orbitRadius = orbRadius * 3 + 25;
+      const nHyps = hypotheses.length;
+
+      hypotheses.forEach((hyp, hypIdx) => {
+        // Position cell in orbit around its orb
+        const angle = (hypIdx / Math.max(nHyps, 1)) * 2 * Math.PI;
+        const cellX = orbPos.x + orbitRadius * Math.cos(angle);
+        const cellY = orbPos.y + orbitRadius * Math.sin(angle);
+
+        // Cell size from evidence count (log scale for balance)
+        const evCount = hyp.evidence_count || 0;
+        const cellRadius = 6 + Math.sqrt(evCount) * 1.2;
+
+        // Cyan cell body
+        const [cr, cg, cb] = [0, 200, 224];
+        p.fill(cr, cg, cb, 200);
+        p.stroke(0, 255, 255, 150);
+        p.strokeWeight(1);
+        p.circle(cellX, cellY, cellRadius * 2);
+
+        // Red confidence pupil at center
+        const confidence = hyp.confidence || 0;
+        const pupilIntensity = Math.floor(255 * confidence);
+        p.fill(pupilIntensity, 48, 64);
+        p.noStroke();
+        p.circle(cellX, cellY, cellRadius * 0.6);
+
+        cellMap.set(cellIdx, {
+          x: cellX,
+          y: cellY,
+          radius: cellRadius,
+          hyp: hyp,
+          key: key,
+          orb: orbInfo
+        });
+        cellIdx++;
+      });
+    });
+
+    // ── Layer 4: Red vein pulses (cross-task reinforcement) ────────
+    // Find cells with same behavior type and draw red veins between them
+    const behaviorGroups = new Map();
+
+    relationKeys.forEach((key, keyIdx) => {
+      const hypotheses = grammarData.entries[keyIdx]?.[1] || [];
+      hypotheses.forEach((hyp, hypIdx) => {
+        let behaviorKey = 'Unknown';
+        if (typeof hyp.behavior === 'string') {
+          behaviorKey = hyp.behavior;
+        } else if (typeof hyp.behavior === 'object' && hyp.behavior.Recolor) {
+          behaviorKey = `Recolor:${hyp.behavior.Recolor.from}-${hyp.behavior.Recolor.to}`;
+        }
+
+        if (!behaviorGroups.has(behaviorKey)) {
+          behaviorGroups.set(behaviorKey, []);
+        }
+        behaviorGroups.get(behaviorKey).push({ keyIdx, hypIdx });
+      });
+    });
+
+    // Draw red veins between cells of same behavior
+    p.strokeWeight(2);
+    for (const [behaviorKey, cellIndices] of behaviorGroups) {
+      if (cellIndices.length < 2) continue;
+
+      // Pulse intensity based on evidence
+      let maxEvidence = 0;
+      cellIndices.forEach(({ keyIdx, hypIdx }) => {
+        const ev = grammarData.entries[keyIdx]?.[1]?.[hypIdx]?.evidence_count || 0;
+        maxEvidence = Math.max(maxEvidence, ev);
+      });
+
+      const pulseAlpha = Math.floor(100 + 155 * Math.sin(pulseTime * 2 + maxEvidence) * 0.5 + 0.5);
+      p.stroke(192, 32, 42, pulseAlpha);
+
+      // Draw vein between first and last cell of this behavior group
+      for (let i = 0; i < cellIndices.length - 1; i++) {
+        const idx1 = cellIndices[i].keyIdx * 100 + cellIndices[i].hypIdx;
+        const idx2 = cellIndices[i + 1].keyIdx * 100 + cellIndices[i + 1].hypIdx;
+
+        const c1 = cellMap.get(idx1);
+        const c2 = cellMap.get(idx2);
+        if (c1 && c2) {
+          p.line(c1.x, c1.y, c2.x, c2.y);
+        }
+      }
+    }
+
+    // ── Layer 5: Unknown candidate ring (outer grey orbs) ────────────
+    // Grey orbs orbit the canvas perimeter. Obs count drives inward drift.
+    // Candidates (≥5 obs) glow. Named ones (future) snap to orange.
+    if (unknownsData && unknownsData.patterns) {
+      const THRESHOLD = 5;
+      const allPatterns = Object.entries(unknownsData.patterns);
+      const candidatePatterns = allPatterns.filter(([k, recs]) => recs.length >= THRESHOLD);
+      const allWithObs = allPatterns.filter(([k, recs]) => recs.length > 0);
+
+      // Draw all patterns (candidates brighter, rest dim)
+      allWithObs.forEach(([key, recs], i) => {
+        const obsCount = recs.length;
+        const isCandidate = obsCount >= THRESHOLD;
+
+        // Ring radius: outer edge = 320, inner edge = 200
+        // As obs grow: drift from 320 toward 200 (capped)
+        const maxObs = 80;
+        const driftFraction = Math.min(obsCount / maxObs, 1.0);
+        const ringRadius = 320 - driftFraction * 120;
+
+        // Angular position around the canvas center
+        const angle = (i / Math.max(allWithObs.length, 1)) * 2 * Math.PI - Math.PI / 2;
+        const cx = canvasWidth / 2 + ringRadius * Math.cos(angle);
+        const cy = canvasHeight / 2 + ringRadius * Math.sin(angle);
+
+        const orbR = isCandidate ? 14 : 8;
+        const alpha = isCandidate ? 200 : 80;
+
+        // Glow halo for candidates
+        if (isCandidate) {
+          p.noStroke();
+          // Pulse: orange glow for Accrete candidate, cyan for others
+          const isAccrete = key.includes('LargestObject');
+          const glowPulse = Math.sin(pulseTime * 1.5 + i) * 0.5 + 0.5;
+          if (isAccrete) {
+            p.fill(255, 140, 0, Math.floor(40 * glowPulse));
+          } else {
+            p.fill(0, 200, 224, Math.floor(40 * glowPulse));
+          }
+          p.circle(cx, cy, orbR * 4);
+          p.fill(255, 140, 0, Math.floor(80 * glowPulse));
+          p.circle(cx, cy, orbR * 2.5);
+        }
+
+        // Core orb: grey → orange for Accrete candidate
+        p.noStroke();
+        const isAccrete = key.includes('LargestObject');
+        if (isCandidate && isAccrete) {
+          p.fill(255, 140, 0, alpha);
+        } else if (isCandidate) {
+          p.fill(180, 180, 180, alpha);
+        } else {
+          p.fill(80, 80, 88, alpha);
+        }
+        p.circle(cx, cy, orbR * 2);
+
+        // Obs count label for candidates
+        if (isCandidate) {
+          p.fill(255, 255, 255, 200);
+          p.noStroke();
+          p.textSize(9);
+          p.textAlign(p.CENTER, p.CENTER);
+          p.text(`${obsCount}`, cx, cy);
+
+          // Short label below
+          const shortKey = key.split('+')[0].replace('Largest', 'Lg').replace('Smallest', 'Sm');
+          p.fill(180, 180, 180, 160);
+          p.textSize(8);
+          p.text(shortKey, cx, cy + orbR + 8);
+        }
+
+        // Dashed line from orb toward grammar center (shows "trying to be named")
+        if (isCandidate) {
+          p.stroke(180, 180, 180, 60);
+          p.strokeWeight(1);
+          p.drawingContext.setLineDash([3, 6]);
+          p.line(cx, cy, canvasWidth / 2, canvasHeight / 2);
+          p.drawingContext.setLineDash([]);
+        }
+      });
+    }
+
+    // ── Mouse hovering ───────────────────────────────────────────
+    p.mouseMoved = function() {
+      hoveredCell = null;
+      for (const [idx, cell] of cellMap) {
+        const dist = p.dist(p.mouseX, p.mouseY, cell.x, cell.y);
+        if (dist < cell.radius * 2) {
+          hoveredCell = cell;
+          break;
+        }
+      }
+    };
+
+    // Highlight hovered cell
+    if (hoveredCell) {
+      const { x, y, radius, hyp, key } = hoveredCell;
+      p.stroke(255, 255, 0);
+      p.strokeWeight(2);
+      p.noFill();
+      p.circle(x, y, radius * 2 + 8);
+
+      // Update info panel
+      let behaviorLabel = 'Unknown';
+      if (typeof hyp.behavior === 'string') {
+        behaviorLabel = hyp.behavior;
+      } else if (typeof hyp.behavior === 'object' && hyp.behavior.Recolor) {
+        behaviorLabel = `Recolor(${hyp.behavior.Recolor.from}→${hyp.behavior.Recolor.to})`;
+      }
+
+      const infoHTML = `
+        <span class="hover-key">${key.agent_role} / ${key.context_role}</span> (${key.size_class})<br>
+        <span class="hover-behavior">${behaviorLabel}</span><br>
+        <span class="hover-conf">Confidence:</span> ${(hyp.confidence * 100).toFixed(1)}% |
+        <span class="hover-conf">Evidence:</span> ${hyp.evidence_count} |
+        <span class="hover-conf">Failures:</span> ${hyp.failure_count}
+      `;
+      document.getElementById('hover-info').innerHTML = infoHTML;
+    }
+  };
+}
+
+// Boot
+Promise.all([loadGrammar(), loadUnknowns()]).then(() => {
+  updateStats();   // re-run after unknowns loaded
+  new p5(sketch);
+});
+
+</script>
+
+</body>
+</html>

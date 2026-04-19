@@ -1,0 +1,662 @@
+{
+  "version": 1,
+  "total_sessions": 28,
+  "entries": [
+    [
+      {
+        "agent_role": "IsolatedSmall",
+        "context_role": "IsolatedSmall",
+        "size_class": "Small"
+      },
+      [
+        {
+          "key": {
+            "agent_role": "IsolatedSmall",
+            "context_role": "IsolatedSmall",
+            "size_class": "Small"
+          },
+          "behavior": {
+            "Move": {
+              "dr": -1,
+              "dc": 0
+            }
+          },
+          "confidence": 0.5713406,
+          "evidence_count": 9,
+          "failure_count": 0,
+          "last_seen_session": 28
+        },
+        {
+          "key": {
+            "agent_role": "IsolatedSmall",
+            "context_role": "IsolatedSmall",
+            "size_class": "Small"
+          },
+          "behavior": "ReflectH",
+          "confidence": 0.7142066,
+          "evidence_count": 10,
+          "failure_count": 0,
+          "last_seen_session": 28
+        }
+      ]
+    ],
+    [
+      {
+        "agent_role": "CenterMass",
+        "context_role": "LargestObject",
+        "size_class": "Small"
+      },
+      [
+        {
+          "key": {
+            "agent_role": "CenterMass",
+            "context_role": "LargestObject",
+            "size_class": "Small"
+          },
+          "behavior": "ReflectV",
+          "confidence": 0.5714286,
+          "evidence_count": 27,
+          "failure_count": 0,
+          "last_seen_session": 28
+        }
+      ]
+    ],
+    [
+      {
+        "agent_role": "LargestObject",
+        "context_role": "SmallestObject",
+        "size_class": "Medium"
+      },
+      [
+        {
+          "key": {
+            "agent_role": "LargestObject",
+            "context_role": "SmallestObject",
+            "size_class": "Medium"
+          },
+          "behavior": "Accrete",
+          "confidence": 0.57142836,
+          "evidence_count": 17,
+          "failure_count": 0,
+          "last_seen_session": 28
+        }
+      ]
+    ],
+    [
+      {
+        "agent_role": "LargestObject",
+        "context_role": "RepeatedUnit",
+        "size_class": "Small"
+      },
+      [
+        {
+          "key": {
+            "agent_role": "LargestObject",
+            "context_role": "RepeatedUnit",
+            "size_class": "Small"
+          },
+          "behavior": "ReflectH",
+          "confidence": 0.59574467,
+          "evidence_count": 65,
+          "failure_count": 0,
+          "last_seen_session": 28
+        }
+      ]
+    ],
+    [
+      {
+        "agent_role": "CenterMass",
+        "context_role": "CenterMass",
+        "size_class": "Small"
+      },
+      [
+        {
+          "key": {
+            "agent_role": "CenterMass",
+            "context_role": "CenterMass",
+            "size_class": "Small"
+          },
+          "behavior": "ReflectV",
+          "confidence": 0.5714286,
+          "evidence_count": 27,
+          "failure_count": 0,
+          "last_seen_session": 28
+        }
+      ]
+    ],
+    [
+      {
+        "agent_role": "RepeatedUnit",
+        "context_role": "CenterMass",
+        "size_class": "Tiny"
+      },
+      [
+        {
+          "key": {
+            "agent_role": "RepeatedUnit",
+            "context_role": "CenterMass",
+            "size_class": "Tiny"
+          },
+          "behavior": "ReflectH",
+          "confidence": 0.7142857,
+          "evidence_count": 28,
+          "failure_count": 0,
+          "last_seen_session": 28
+        }
+      ]
+    ],
+    [
+      {
+        "agent_role": "IsolatedSmall",
+        "context_role": "IsolatedSmall",
+        "size_class": "Tiny"
+      },
+      [
+        {
+          "key": {
+            "agent_role": "IsolatedSmall",
+            "context_role": "IsolatedSmall",
+            "size_class": "Tiny"
+          },
+          "behavior": "ReflectH",
+          "confidence": 0.5713406,
+          "evidence_count": 9,
+          "failure_count": 0,
+          "last_seen_session": 28
+        }
+      ]
+    ],
+    [
+      {
+        "agent_role": "LargestObject",
+        "context_role": "RepeatedUnit",
+        "size_class": "Medium"
+      },
+      [
+        {
+          "key": {
+            "agent_role": "LargestObject",
+            "context_role": "RepeatedUnit",
+            "size_class": "Medium"
+          },
+          "behavior": "ReflectV",
+          "confidence": 0.5714286,
+          "evidence_count": 27,
+          "failure_count": 0,
+          "last_seen_session": 28
+        },
+        {
+          "key": {
+            "agent_role": "LargestObject",
+            "context_role": "RepeatedUnit",
+            "size_class": "Medium"
+          },
+          "behavior": "Accrete",
+          "confidence": 0.7142855,
+          "evidence_count": 18,
+          "failure_count": 0,
+          "last_seen_session": 28
+        }
+      ]
+    ],
+    [
+      {
+        "agent_role": "LargestObject",
+        "context_role": "LargestObject",
+        "size_class": "Small"
+      },
+      [
+        {
+          "key": {
+            "agent_role": "LargestObject",
+            "context_role": "LargestObject",
+            "size_class": "Small"
+          },
+          "behavior": "ReflectH",
+          "confidence": 0.5714286,
+          "evidence_count": 27,
+          "failure_count": 0,
+          "last_seen_session": 28
+        }
+      ]
+    ],
+    [
+      {
+        "agent_role": "RepeatedUnit",
+        "context_role": "RepeatedUnit",
+        "size_class": "Tiny"
+      },
+      [
+        {
+          "key": {
+            "agent_role": "RepeatedUnit",
+            "context_role": "RepeatedUnit",
+            "size_class": "Tiny"
+          },
+          "behavior": "ReflectH",
+          "confidence": 1.0,
+          "evidence_count": 338,
+          "failure_count": 0,
+          "last_seen_session": 28
+        },
+        {
+          "key": {
+            "agent_role": "RepeatedUnit",
+            "context_role": "RepeatedUnit",
+            "size_class": "Tiny"
+          },
+          "behavior": "FallToSurface",
+          "confidence": 0.7142857,
+          "evidence_count": 28,
+          "failure_count": 0,
+          "last_seen_session": 28
+        },
+        {
+          "key": {
+            "agent_role": "RepeatedUnit",
+            "context_role": "RepeatedUnit",
+            "size_class": "Tiny"
+          },
+          "behavior": {
+            "Recolor": {
+              "from": 4,
+              "to": 0
+            }
+          },
+          "confidence": 0.9999384,
+          "evidence_count": 30,
+          "failure_count": 0,
+          "last_seen_session": 28
+        },
+        {
+          "key": {
+            "agent_role": "RepeatedUnit",
+            "context_role": "RepeatedUnit",
+            "size_class": "Tiny"
+          },
+          "behavior": {
+            "Recolor": {
+              "from": 5,
+              "to": 9
+            }
+          },
+          "confidence": 0.85707253,
+          "evidence_count": 20,
+          "failure_count": 0,
+          "last_seen_session": 28
+        }
+      ]
+    ],
+    [
+      {
+        "agent_role": "RepeatedUnit",
+        "context_role": "LargestObject",
+        "size_class": "Tiny"
+      },
+      [
+        {
+          "key": {
+            "agent_role": "RepeatedUnit",
+            "context_role": "LargestObject",
+            "size_class": "Tiny"
+          },
+          "behavior": "FallToSurface",
+          "confidence": 0.7868852,
+          "evidence_count": 84,
+          "failure_count": 0,
+          "last_seen_session": 28
+        },
+        {
+          "key": {
+            "agent_role": "RepeatedUnit",
+            "context_role": "LargestObject",
+            "size_class": "Tiny"
+          },
+          "behavior": "ReflectH",
+          "confidence": 1.0,
+          "evidence_count": 444,
+          "failure_count": 0,
+          "last_seen_session": 28
+        }
+      ]
+    ],
+    [
+      {
+        "agent_role": "SmallestObject",
+        "context_role": "LargestObject",
+        "size_class": "Tiny"
+      },
+      [
+        {
+          "key": {
+            "agent_role": "SmallestObject",
+            "context_role": "LargestObject",
+            "size_class": "Tiny"
+          },
+          "behavior": "FallToSurface",
+          "confidence": 0.5714286,
+          "evidence_count": 27,
+          "failure_count": 0,
+          "last_seen_session": 28
+        }
+      ]
+    ],
+    [
+      {
+        "agent_role": "LargestObject",
+        "context_role": "LargestObject",
+        "size_class": "Medium"
+      },
+      [
+        {
+          "key": {
+            "agent_role": "LargestObject",
+            "context_role": "LargestObject",
+            "size_class": "Medium"
+          },
+          "behavior": {
+            "Recolor": {
+              "from": 5,
+              "to": 6
+            }
+          },
+          "confidence": 0.5713406,
+          "evidence_count": 9,
+          "failure_count": 0,
+          "last_seen_session": 28
+        }
+      ]
+    ],
+    [
+      {
+        "agent_role": "RepeatedUnit",
+        "context_role": "CenterMass",
+        "size_class": "Small"
+      },
+      [
+        {
+          "key": {
+            "agent_role": "RepeatedUnit",
+            "context_role": "CenterMass",
+            "size_class": "Small"
+          },
+          "behavior": "ReflectH",
+          "confidence": 0.5714286,
+          "evidence_count": 27,
+          "failure_count": 0,
+          "last_seen_session": 28
+        }
+      ]
+    ],
+    [
+      {
+        "agent_role": "RepeatedUnit",
+        "context_role": "EdgeTouching",
+        "size_class": "Tiny"
+      },
+      [
+        {
+          "key": {
+            "agent_role": "RepeatedUnit",
+            "context_role": "EdgeTouching",
+            "size_class": "Tiny"
+          },
+          "behavior": "ReflectH",
+          "confidence": 0.9999384,
+          "evidence_count": 30,
+          "failure_count": 0,
+          "last_seen_session": 28
+        },
+        {
+          "key": {
+            "agent_role": "RepeatedUnit",
+            "context_role": "EdgeTouching",
+            "size_class": "Tiny"
+          },
+          "behavior": {
+            "Recolor": {
+              "from": 1,
+              "to": 2
+            }
+          },
+          "confidence": 0.5713406,
+          "evidence_count": 9,
+          "failure_count": 0,
+          "last_seen_session": 28
+        }
+      ]
+    ],
+    [
+      {
+        "agent_role": "RepeatedUnit",
+        "context_role": "LargestObject",
+        "size_class": "Small"
+      },
+      [
+        {
+          "key": {
+            "agent_role": "RepeatedUnit",
+            "context_role": "LargestObject",
+            "size_class": "Small"
+          },
+          "behavior": "ReflectV",
+          "confidence": 1.0,
+          "evidence_count": 112,
+          "failure_count": 0,
+          "last_seen_session": 28
+        },
+        {
+          "key": {
+            "agent_role": "RepeatedUnit",
+            "context_role": "LargestObject",
+            "size_class": "Small"
+          },
+          "behavior": "ReflectH",
+          "confidence": 0.5714286,
+          "evidence_count": 27,
+          "failure_count": 0,
+          "last_seen_session": 28
+        }
+      ]
+    ],
+    [
+      {
+        "agent_role": "RepeatedUnit",
+        "context_role": "RepeatedUnit",
+        "size_class": "Small"
+      },
+      [
+        {
+          "key": {
+            "agent_role": "RepeatedUnit",
+            "context_role": "RepeatedUnit",
+            "size_class": "Small"
+          },
+          "behavior": {
+            "Recolor": {
+              "from": 1,
+              "to": 5
+            }
+          },
+          "confidence": 0.5714286,
+          "evidence_count": 27,
+          "failure_count": 0,
+          "last_seen_session": 28
+        },
+        {
+          "key": {
+            "agent_role": "RepeatedUnit",
+            "context_role": "RepeatedUnit",
+            "size_class": "Small"
+          },
+          "behavior": "ReflectH",
+          "confidence": 0.68852454,
+          "evidence_count": 55,
+          "failure_count": 0,
+          "last_seen_session": 28
+        },
+        {
+          "key": {
+            "agent_role": "RepeatedUnit",
+            "context_role": "RepeatedUnit",
+            "size_class": "Small"
+          },
+          "behavior": {
+            "Recolor": {
+              "from": 2,
+              "to": 6
+            }
+          },
+          "confidence": 0.7142857,
+          "evidence_count": 28,
+          "failure_count": 0,
+          "last_seen_session": 28
+        },
+        {
+          "key": {
+            "agent_role": "RepeatedUnit",
+            "context_role": "RepeatedUnit",
+            "size_class": "Small"
+          },
+          "behavior": {
+            "Recolor": {
+              "from": 3,
+              "to": 4
+            }
+          },
+          "confidence": 0.5714286,
+          "evidence_count": 27,
+          "failure_count": 0,
+          "last_seen_session": 28
+        },
+        {
+          "key": {
+            "agent_role": "RepeatedUnit",
+            "context_role": "RepeatedUnit",
+            "size_class": "Small"
+          },
+          "behavior": {
+            "Recolor": {
+              "from": 5,
+              "to": 1
+            }
+          },
+          "confidence": 0.5714286,
+          "evidence_count": 27,
+          "failure_count": 0,
+          "last_seen_session": 28
+        },
+        {
+          "key": {
+            "agent_role": "RepeatedUnit",
+            "context_role": "RepeatedUnit",
+            "size_class": "Small"
+          },
+          "behavior": {
+            "Recolor": {
+              "from": 6,
+              "to": 2
+            }
+          },
+          "confidence": 0.5714286,
+          "evidence_count": 27,
+          "failure_count": 0,
+          "last_seen_session": 28
+        },
+        {
+          "key": {
+            "agent_role": "RepeatedUnit",
+            "context_role": "RepeatedUnit",
+            "size_class": "Small"
+          },
+          "behavior": {
+            "Recolor": {
+              "from": 4,
+              "to": 3
+            }
+          },
+          "confidence": 0.5714286,
+          "evidence_count": 27,
+          "failure_count": 0,
+          "last_seen_session": 28
+        },
+        {
+          "key": {
+            "agent_role": "RepeatedUnit",
+            "context_role": "RepeatedUnit",
+            "size_class": "Small"
+          },
+          "behavior": {
+            "Recolor": {
+              "from": 5,
+              "to": 9
+            }
+          },
+          "confidence": 0.7142066,
+          "evidence_count": 10,
+          "failure_count": 0,
+          "last_seen_session": 28
+        }
+      ]
+    ],
+    [
+      {
+        "agent_role": "LargestObject",
+        "context_role": "CenterMass",
+        "size_class": "Medium"
+      },
+      [
+        {
+          "key": {
+            "agent_role": "LargestObject",
+            "context_role": "CenterMass",
+            "size_class": "Medium"
+          },
+          "behavior": "ReflectV",
+          "confidence": 0.5714286,
+          "evidence_count": 27,
+          "failure_count": 0,
+          "last_seen_session": 28
+        }
+      ]
+    ],
+    [
+      {
+        "agent_role": "SmallestObject",
+        "context_role": "SmallestObject",
+        "size_class": "Tiny"
+      },
+      [
+        {
+          "key": {
+            "agent_role": "SmallestObject",
+            "context_role": "SmallestObject",
+            "size_class": "Tiny"
+          },
+          "behavior": "ReflectH",
+          "confidence": 0.5714286,
+          "evidence_count": 27,
+          "failure_count": 0,
+          "last_seen_session": 28
+        },
+        {
+          "key": {
+            "agent_role": "SmallestObject",
+            "context_role": "SmallestObject",
+            "size_class": "Tiny"
+          },
+          "behavior": {
+            "Recolor": {
+              "from": 5,
+              "to": 6
+            }
+          },
+          "confidence": 0.5713406,
+          "evidence_count": 9,
+          "failure_count": 0,
+          "last_seen_session": 28
+        }
+      ]
+    ]
+  ]
+}

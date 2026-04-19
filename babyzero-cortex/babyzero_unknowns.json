@@ -1,0 +1,1564 @@
+{
+  "patterns": {
+    "LargestObject+SmallestObject|Medium": [
+      {
+        "task_id": "3c9b0459",
+        "agent_value": 2,
+        "input_cell_count": 6,
+        "output_cell_count": 0,
+        "session": 19
+      },
+      {
+        "task_id": "3c9b0459",
+        "agent_value": 2,
+        "input_cell_count": 6,
+        "output_cell_count": 0,
+        "session": 20
+      },
+      {
+        "task_id": "3c9b0459",
+        "agent_value": 2,
+        "input_cell_count": 6,
+        "output_cell_count": 0,
+        "session": 21
+      },
+      {
+        "task_id": "3c9b0459",
+        "agent_value": 2,
+        "input_cell_count": 6,
+        "output_cell_count": 0,
+        "session": 22
+      },
+      {
+        "task_id": "3c9b0459",
+        "agent_value": 2,
+        "input_cell_count": 6,
+        "output_cell_count": 0,
+        "session": 23
+      },
+      {
+        "task_id": "3c9b0459",
+        "agent_value": 2,
+        "input_cell_count": 6,
+        "output_cell_count": 0,
+        "session": 24
+      },
+      {
+        "task_id": "3c9b0459",
+        "agent_value": 2,
+        "input_cell_count": 6,
+        "output_cell_count": 0,
+        "session": 25
+      },
+      {
+        "task_id": "3c9b0459",
+        "agent_value": 2,
+        "input_cell_count": 6,
+        "output_cell_count": 0,
+        "session": 26
+      },
+      {
+        "task_id": "3c9b0459",
+        "agent_value": 2,
+        "input_cell_count": 6,
+        "output_cell_count": 0,
+        "session": 27
+      },
+      {
+        "task_id": "3c9b0459",
+        "agent_value": 2,
+        "input_cell_count": 6,
+        "output_cell_count": 0,
+        "session": 28
+      }
+    ],
+    "IsolatedSmall+IsolatedSmall|Tiny": [
+      {
+        "task_id": "d631b094",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 19
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 20
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 21
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 22
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 23
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 24
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 25
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 26
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 27
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 28
+      }
+    ],
+    "IsolatedSmall+IsolatedSmall|Small": [
+      {
+        "task_id": "d631b094",
+        "agent_value": 8,
+        "input_cell_count": 4,
+        "output_cell_count": 0,
+        "session": 19
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 8,
+        "input_cell_count": 4,
+        "output_cell_count": 0,
+        "session": 20
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 8,
+        "input_cell_count": 4,
+        "output_cell_count": 0,
+        "session": 21
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 8,
+        "input_cell_count": 4,
+        "output_cell_count": 0,
+        "session": 22
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 8,
+        "input_cell_count": 4,
+        "output_cell_count": 0,
+        "session": 23
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 8,
+        "input_cell_count": 4,
+        "output_cell_count": 0,
+        "session": 24
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 8,
+        "input_cell_count": 4,
+        "output_cell_count": 0,
+        "session": 25
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 8,
+        "input_cell_count": 4,
+        "output_cell_count": 0,
+        "session": 26
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 8,
+        "input_cell_count": 4,
+        "output_cell_count": 0,
+        "session": 27
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 8,
+        "input_cell_count": 4,
+        "output_cell_count": 0,
+        "session": 28
+      }
+    ],
+    "EdgeTouching+EdgeTouching|Small": [
+      {
+        "task_id": "0520fde7",
+        "agent_value": 0,
+        "input_cell_count": 2,
+        "output_cell_count": 0,
+        "session": 19
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 0,
+        "input_cell_count": 2,
+        "output_cell_count": 0,
+        "session": 20
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 0,
+        "input_cell_count": 2,
+        "output_cell_count": 0,
+        "session": 21
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 0,
+        "input_cell_count": 2,
+        "output_cell_count": 0,
+        "session": 22
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 0,
+        "input_cell_count": 2,
+        "output_cell_count": 0,
+        "session": 23
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 0,
+        "input_cell_count": 2,
+        "output_cell_count": 0,
+        "session": 24
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 0,
+        "input_cell_count": 2,
+        "output_cell_count": 0,
+        "session": 25
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 0,
+        "input_cell_count": 2,
+        "output_cell_count": 0,
+        "session": 26
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 0,
+        "input_cell_count": 2,
+        "output_cell_count": 0,
+        "session": 27
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 0,
+        "input_cell_count": 2,
+        "output_cell_count": 0,
+        "session": 28
+      }
+    ],
+    "UniqueSingleton+UniqueSingleton|Medium": [
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 13,
+        "output_cell_count": 33,
+        "session": 19
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 13,
+        "output_cell_count": 33,
+        "session": 20
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 13,
+        "output_cell_count": 33,
+        "session": 21
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 13,
+        "output_cell_count": 33,
+        "session": 22
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 13,
+        "output_cell_count": 33,
+        "session": 23
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 13,
+        "output_cell_count": 33,
+        "session": 24
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 13,
+        "output_cell_count": 33,
+        "session": 25
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 13,
+        "output_cell_count": 33,
+        "session": 26
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 13,
+        "output_cell_count": 33,
+        "session": 27
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 13,
+        "output_cell_count": 33,
+        "session": 28
+      }
+    ],
+    "LargestObject+EdgeTouching|Medium": [
+      {
+        "task_id": "0520fde7",
+        "agent_value": 0,
+        "input_cell_count": 5,
+        "output_cell_count": 0,
+        "session": 19
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 0,
+        "input_cell_count": 5,
+        "output_cell_count": 0,
+        "session": 20
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 0,
+        "input_cell_count": 5,
+        "output_cell_count": 0,
+        "session": 21
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 0,
+        "input_cell_count": 5,
+        "output_cell_count": 0,
+        "session": 22
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 0,
+        "input_cell_count": 5,
+        "output_cell_count": 0,
+        "session": 23
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 0,
+        "input_cell_count": 5,
+        "output_cell_count": 0,
+        "session": 24
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 0,
+        "input_cell_count": 5,
+        "output_cell_count": 0,
+        "session": 25
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 0,
+        "input_cell_count": 5,
+        "output_cell_count": 0,
+        "session": 26
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 0,
+        "input_cell_count": 5,
+        "output_cell_count": 0,
+        "session": 27
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 0,
+        "input_cell_count": 5,
+        "output_cell_count": 0,
+        "session": 28
+      }
+    ],
+    "LargestObject+RepeatedUnit|Small": [
+      {
+        "task_id": "496994bd",
+        "agent_value": 4,
+        "input_cell_count": 3,
+        "output_cell_count": 3,
+        "session": 19
+      },
+      {
+        "task_id": "496994bd",
+        "agent_value": 4,
+        "input_cell_count": 3,
+        "output_cell_count": 3,
+        "session": 20
+      },
+      {
+        "task_id": "496994bd",
+        "agent_value": 4,
+        "input_cell_count": 3,
+        "output_cell_count": 3,
+        "session": 21
+      },
+      {
+        "task_id": "496994bd",
+        "agent_value": 4,
+        "input_cell_count": 3,
+        "output_cell_count": 3,
+        "session": 22
+      },
+      {
+        "task_id": "496994bd",
+        "agent_value": 4,
+        "input_cell_count": 3,
+        "output_cell_count": 3,
+        "session": 23
+      },
+      {
+        "task_id": "496994bd",
+        "agent_value": 4,
+        "input_cell_count": 3,
+        "output_cell_count": 3,
+        "session": 24
+      },
+      {
+        "task_id": "496994bd",
+        "agent_value": 4,
+        "input_cell_count": 3,
+        "output_cell_count": 3,
+        "session": 25
+      },
+      {
+        "task_id": "496994bd",
+        "agent_value": 4,
+        "input_cell_count": 3,
+        "output_cell_count": 3,
+        "session": 26
+      },
+      {
+        "task_id": "496994bd",
+        "agent_value": 4,
+        "input_cell_count": 3,
+        "output_cell_count": 3,
+        "session": 27
+      },
+      {
+        "task_id": "496994bd",
+        "agent_value": 4,
+        "input_cell_count": 3,
+        "output_cell_count": 3,
+        "session": 28
+      }
+    ],
+    "RepeatedUnit+RepeatedUnit|Tiny": [
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 19
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 19
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 19
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 19
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 19
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 1,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 19
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 1,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 19
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 2,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 19
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 2,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 19
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 2,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 19
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 20
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 20
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 20
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 20
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 20
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 1,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 20
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 1,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 20
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 2,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 20
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 2,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 20
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 2,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 20
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 21
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 21
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 21
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 21
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 21
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 1,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 21
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 1,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 21
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 2,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 21
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 2,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 21
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 2,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 21
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 22
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 22
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 22
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 22
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 22
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 1,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 22
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 1,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 22
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 2,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 22
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 2,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 22
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 2,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 22
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 23
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 23
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 23
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 23
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 23
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 1,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 23
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 1,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 23
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 2,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 23
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 2,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 23
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 2,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 23
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 24
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 24
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 24
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 24
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 24
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 1,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 24
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 1,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 24
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 2,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 24
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 2,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 24
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 2,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 24
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 25
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 25
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 25
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 25
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 25
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 1,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 25
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 1,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 25
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 2,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 25
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 2,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 25
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 2,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 25
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 26
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 26
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 26
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 26
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 26
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 1,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 26
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 1,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 26
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 2,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 26
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 2,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 26
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 2,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 26
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 27
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 27
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 27
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 27
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 27
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 1,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 27
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 1,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 27
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 2,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 27
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 2,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 27
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 2,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 27
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 28
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 28
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 28
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 28
+      },
+      {
+        "task_id": "7f4411dc",
+        "agent_value": 7,
+        "input_cell_count": 1,
+        "output_cell_count": 33,
+        "session": 28
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 1,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 28
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 1,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 28
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 2,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 28
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 2,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 28
+      },
+      {
+        "task_id": "d631b094",
+        "agent_value": 2,
+        "input_cell_count": 1,
+        "output_cell_count": 0,
+        "session": 28
+      }
+    ],
+    "LargestObject+EdgeTouching|Small": [
+      {
+        "task_id": "0520fde7",
+        "agent_value": 1,
+        "input_cell_count": 4,
+        "output_cell_count": 0,
+        "session": 19
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 5,
+        "input_cell_count": 3,
+        "output_cell_count": 0,
+        "session": 19
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 1,
+        "input_cell_count": 4,
+        "output_cell_count": 0,
+        "session": 20
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 5,
+        "input_cell_count": 3,
+        "output_cell_count": 0,
+        "session": 20
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 1,
+        "input_cell_count": 4,
+        "output_cell_count": 0,
+        "session": 21
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 5,
+        "input_cell_count": 3,
+        "output_cell_count": 0,
+        "session": 21
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 1,
+        "input_cell_count": 4,
+        "output_cell_count": 0,
+        "session": 22
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 5,
+        "input_cell_count": 3,
+        "output_cell_count": 0,
+        "session": 22
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 1,
+        "input_cell_count": 4,
+        "output_cell_count": 0,
+        "session": 23
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 5,
+        "input_cell_count": 3,
+        "output_cell_count": 0,
+        "session": 23
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 1,
+        "input_cell_count": 4,
+        "output_cell_count": 0,
+        "session": 24
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 5,
+        "input_cell_count": 3,
+        "output_cell_count": 0,
+        "session": 24
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 1,
+        "input_cell_count": 4,
+        "output_cell_count": 0,
+        "session": 25
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 5,
+        "input_cell_count": 3,
+        "output_cell_count": 0,
+        "session": 25
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 1,
+        "input_cell_count": 4,
+        "output_cell_count": 0,
+        "session": 26
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 5,
+        "input_cell_count": 3,
+        "output_cell_count": 0,
+        "session": 26
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 1,
+        "input_cell_count": 4,
+        "output_cell_count": 0,
+        "session": 27
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 5,
+        "input_cell_count": 3,
+        "output_cell_count": 0,
+        "session": 27
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 1,
+        "input_cell_count": 4,
+        "output_cell_count": 0,
+        "session": 28
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 5,
+        "input_cell_count": 3,
+        "output_cell_count": 0,
+        "session": 28
+      }
+    ],
+    "EdgeTouching+LargestObject|Small": [
+      {
+        "task_id": "0520fde7",
+        "agent_value": 5,
+        "input_cell_count": 3,
+        "output_cell_count": 0,
+        "session": 19
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 0,
+        "input_cell_count": 2,
+        "output_cell_count": 0,
+        "session": 19
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 5,
+        "input_cell_count": 3,
+        "output_cell_count": 0,
+        "session": 19
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 5,
+        "input_cell_count": 3,
+        "output_cell_count": 0,
+        "session": 20
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 0,
+        "input_cell_count": 2,
+        "output_cell_count": 0,
+        "session": 20
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 5,
+        "input_cell_count": 3,
+        "output_cell_count": 0,
+        "session": 20
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 5,
+        "input_cell_count": 3,
+        "output_cell_count": 0,
+        "session": 21
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 0,
+        "input_cell_count": 2,
+        "output_cell_count": 0,
+        "session": 21
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 5,
+        "input_cell_count": 3,
+        "output_cell_count": 0,
+        "session": 21
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 5,
+        "input_cell_count": 3,
+        "output_cell_count": 0,
+        "session": 22
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 0,
+        "input_cell_count": 2,
+        "output_cell_count": 0,
+        "session": 22
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 5,
+        "input_cell_count": 3,
+        "output_cell_count": 0,
+        "session": 22
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 5,
+        "input_cell_count": 3,
+        "output_cell_count": 0,
+        "session": 23
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 0,
+        "input_cell_count": 2,
+        "output_cell_count": 0,
+        "session": 23
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 5,
+        "input_cell_count": 3,
+        "output_cell_count": 0,
+        "session": 23
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 5,
+        "input_cell_count": 3,
+        "output_cell_count": 0,
+        "session": 24
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 0,
+        "input_cell_count": 2,
+        "output_cell_count": 0,
+        "session": 24
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 5,
+        "input_cell_count": 3,
+        "output_cell_count": 0,
+        "session": 24
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 5,
+        "input_cell_count": 3,
+        "output_cell_count": 0,
+        "session": 25
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 0,
+        "input_cell_count": 2,
+        "output_cell_count": 0,
+        "session": 25
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 5,
+        "input_cell_count": 3,
+        "output_cell_count": 0,
+        "session": 25
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 5,
+        "input_cell_count": 3,
+        "output_cell_count": 0,
+        "session": 26
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 0,
+        "input_cell_count": 2,
+        "output_cell_count": 0,
+        "session": 26
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 5,
+        "input_cell_count": 3,
+        "output_cell_count": 0,
+        "session": 26
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 5,
+        "input_cell_count": 3,
+        "output_cell_count": 0,
+        "session": 27
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 0,
+        "input_cell_count": 2,
+        "output_cell_count": 0,
+        "session": 27
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 5,
+        "input_cell_count": 3,
+        "output_cell_count": 0,
+        "session": 27
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 5,
+        "input_cell_count": 3,
+        "output_cell_count": 0,
+        "session": 28
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 0,
+        "input_cell_count": 2,
+        "output_cell_count": 0,
+        "session": 28
+      },
+      {
+        "task_id": "0520fde7",
+        "agent_value": 5,
+        "input_cell_count": 3,
+        "output_cell_count": 0,
+        "session": 28
+      }
+    ]
+  }
+}

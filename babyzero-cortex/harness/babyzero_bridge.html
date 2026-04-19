@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>BabyZero — What I Know &amp; What I'm Learning</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0d0d1a; color: #e0e0e0; font-family: 'Courier New', monospace; overflow-x: hidden; }
+    #header { padding: 22px 28px 10px; border-bottom: 1px solid #1a1a2e; }
+    #header h1 { font-size: 1.25em; color: #00e5ff; letter-spacing: 0.06em; margin-bottom: 4px; }
+    #header .sub { color: #556; font-size: 0.8em; letter-spacing: 0.04em; }
+    #layout { display: flex; height: calc(100vh - 72px); }
+    #canvas-wrap { flex: 1; position: relative; overflow: hidden; }
+    #sidebar { width: 280px; border-left: 1px solid #1a1a2e; display: flex; flex-direction: column; background: #0a0a14; }
+    .panel { padding: 18px 16px; border-bottom: 1px solid #1a1a2e; }
+    .panel-title { font-size: 0.72em; color: #445; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 12px; }
+    .stat { display: flex; justify-content: space-between; font-size: 0.82em; padding: 5px 0; border-bottom: 1px solid #111; }
+    .stat:last-child { border-bottom: none; }
+    .stat-label { color: #00e5ff; }
+    .stat-val { color: #88ffaa; font-weight: bold; }
+    #name-panel { padding: 18px 16px; flex: 1; display: flex; flex-direction: column; }
+    #name-panel .panel-title { color: #ff9040; }
+    #idea-display { background: #111; border: 1px solid #2a2a3a; border-radius: 6px; padding: 14px; margin-bottom: 14px; min-height: 80px; font-size: 0.82em; color: #888; line-height: 1.7; transition: border-color 0.3s; }
+    #idea-display.active { border-color: #ff9040; color: #e0c090; }
+    #idea-display .idea-count { color: #ff9040; font-size: 1.1em; font-weight: bold; }
+    #name-input-wrap { display: flex; gap: 8px; opacity: 0.3; pointer-events: none; transition: opacity 0.3s; }
+    #name-input-wrap.ready { opacity: 1; pointer-events: all; }
+    #name-input { flex: 1; background: #0d0d1a; border: 1px solid #ff9040; border-radius: 4px; color: #ffe0b0; font-family: inherit; font-size: 0.88em; padding: 8px 10px; outline: none; }
+    #name-input:focus { border-color: #ffb060; box-shadow: 0 0 8px rgba(255,160,64,0.3); }
+    #name-btn { background: #ff9040; border: none; border-radius: 4px; color: #0d0d1a; font-family: inherit; font-size: 0.82em; font-weight: bold; padding: 8px 12px; cursor: pointer; transition: background 0.15s; }
+    #name-btn:hover { background: #ffb060; }
+    #name-history { margin-top: 16px; flex: 1; overflow-y: auto; }
+    .named-entry { font-size: 0.76em; padding: 6px 0; border-bottom: 1px solid #1a1a2e; color: #ff9040; animation: fadeIn 0.5s ease; }
+    .named-entry .named-label { color: #888; font-size: 0.9em; }
+    @keyframes fadeIn { from { opacity:0; transform:translateX(8px); } to { opacity:1; transform:translateX(0); } }
+    #hint { padding: 10px 16px; font-size: 0.72em; color: #334; letter-spacing: 0.03em; border-top: 1px solid #1a1a2e; }
+    #refresh-badge { position: absolute; bottom: 12px; left: 12px; font-size: 0.68em; color: #334; letter-spacing: 0.05em; }
+    #refresh-badge.live { color: #00ff88; }
+  </style>
+</head>
+<body>
+<div id="header">
+  <h1>BabyZero 🧠</h1>
+  <div class="sub">what I know &nbsp;·&nbsp; what I'm still figuring out</div>
+</div>
+<div id="layout">
+  <div id="canvas-wrap">
+    <div id="canvas-container"></div>
+    <div id="refresh-badge">⟳ auto-refresh every 30s</div>
+  </div>
+  <div id="sidebar">
+    <div class="panel">
+      <div class="panel-title">BabyZero Stats</div>
+      <div class="stat"><span class="stat-label">Sessions</span><span class="stat-val" id="s-sessions">—</span></div>
+      <div class="stat"><span class="stat-label">Things I know</span><span class="stat-val" id="s-rules">—</span></div>
+      <div class="stat"><span class="stat-label">Ideas drifting</span><span class="stat-val" id="s-ideas">—</span></div>
+      <div class="stat"><span class="stat-label">Candidates 🌱</span><span class="stat-val" id="s-cands">—</span></div>
+    </div>
+    <div id="name-panel">
+      <div class="panel-title">✦ Name an idea</div>
+      <div id="idea-display">Click a glowing orb to select an idea BabyZero keeps noticing but can't name yet.</div>
+      <div id="name-input-wrap">
+        <input id="name-input" type="text" placeholder="what should we call it?" maxlength="32" />
+        <button id="name-btn">name it</button>
+      </div>
+      <div id="name-history"></div>
+    </div>
+    <div id="hint">← click a glowing idea to name it</div>
+  </div>
+</div>
+<script>
+// ═══════════════════════════════ DATA ═══════════════════════════════
+let grammarData  = null;
+let unknownsData = null;
+let namedIdeas   = {};
+let selectedKey  = null;
+const THRESH = 5;
+
+async function loadAll() {
+  try {
+    const [gRes, uRes] = await Promise.all([
+      fetch('../babyzero_grammar.json?t=' + Date.now()),
+      fetch('../babyzero_unknowns.json?t=' + Date.now())
+    ]);
+    if (gRes.ok) grammarData  = await gRes.json();
+    if (uRes.ok) unknownsData = await uRes.json();
+  } catch(e) { console.warn('load', e); }
+  updateStats();
+}
+
+function updateStats() {
+  const sessions = grammarData?.total_sessions ?? '—';
+  let rules = 0;
+  if (grammarData?.entries) rules = grammarData.entries.reduce((n,[,hs])=>n+(hs?.length??0),0);
+  let ideas = 0, cands = 0;
+  if (unknownsData?.patterns) {
+    const pats = Object.values(unknownsData.patterns);
+    ideas = pats.length;
+    cands = pats.filter(r=>r.length>=THRESH).length;
+  }
+  document.getElementById('s-sessions').textContent = sessions;
+  document.getElementById('s-rules').textContent    = rules;
+  document.getElementById('s-ideas').textContent    = ideas;
+  document.getElementById('s-cands').textContent    = cands > 0 ? cands+' 🌱' : cands;
+}
+
+function friendlyLabel(key) {
+  if (key.includes('Largest') && key.includes('Smallest')) return 'The Landing Pair';
+  if (key.includes('Largest') && key.includes('Repeated')) return 'The Surface Pattern';
+  if (key.includes('Isolated'))  return 'The Lone Wanderer';
+  if (key.includes('Repeated'))  return 'The Repeating Shape';
+  if (key.includes('Largest'))   return 'The Big Shape';
+  return key.replace(/([A-Z])/g,' $1').replace(/\|/,'  ·  ').trim();
+}
+
+function selectIdea(key, obs) {
+  selectedKey = key;
+  const d = document.getElementById('idea-display');
+  d.className = 'active';
+  d.innerHTML = `<div style="color:#ff9040;font-size:.85em;margin-bottom:6px">Selected idea:</div>
+    <div style="color:#ffe0b0;font-size:1em;margin-bottom:8px">${friendlyLabel(key)}</div>
+    <div>BabyZero has noticed this <span class="idea-count">${obs}×</span> and still doesn't have a name for it.</div>`;
+  const w = document.getElementById('name-input-wrap');
+  w.className = 'ready';
+  const inp = document.getElementById('name-input');
+  inp.value = '';
+  inp.focus();
+}
+
+function nameIdea() {
+  if (!selectedKey) return;
+  const inp  = document.getElementById('name-input');
+  const name = inp.value.trim();
+  if (!name) return;
+  namedIdeas[selectedKey] = name;
+  const hist = document.getElementById('name-history');
+  const el   = document.createElement('div');
+  el.className = 'named-entry';
+  el.innerHTML = `<span class="named-label">idea →</span> <strong>${name}</strong>`;
+  hist.prepend(el);
+  const d = document.getElementById('idea-display');
+  d.className = '';
+  d.textContent = "Click a glowing orb to select an idea BabyZero keeps noticing but can't name yet.";
+  document.getElementById('name-input-wrap').className = '';
+  inp.value = '';
+  selectedKey = null;
+}
+
+document.getElementById('name-btn').addEventListener('click', nameIdea);
+document.getElementById('name-input').addEventListener('keydown', e => { if (e.key==='Enter') nameIdea(); });
+
+setInterval(() => {
+  loadAll();
+  const b = document.getElementById('refresh-badge');
+  b.className = 'live';
+  setTimeout(()=>b.className='', 1400);
+}, 30000);
+// ═══════════════════════════════ p5 ═══════════════════════════════
+function sketch(p) {
+  let W, H, T = 0;
+  const S = {};   // orb state per key
+
+  p.setup = function() {
+    const wrap = document.getElementById('canvas-wrap');
+    W = wrap.offsetWidth; H = wrap.offsetHeight;
+    p.createCanvas(W, H).parent('canvas-container');
+    p.textFont('Courier New');
+  };
+
+  p.draw = function() {
+    T += 0.012;
+    p.background(13, 13, 26);
+
+    // grid
+    p.stroke(20,20,42); p.strokeWeight(1);
+    for (let x=0;x<W;x+=48) p.line(x,0,x,H);
+    for (let y=0;y<H;y+=48) p.line(0,y,W,y);
+
+    const cx=W/2, cy=H/2;
+
+    // core glow
+    p.noStroke();
+    for (let r=110;r>0;r-=18) { p.fill(0,40,80,7+Math.sin(T)*2); p.circle(cx,cy,r*2); }
+
+    // ── grammar cells ──────────────────────────────
+    if (grammarData?.entries) {
+      grammarData.entries.forEach(([key,hyps],ki) => {
+        if (!hyps?.length) return;
+        const a  = (ki/grammarData.entries.length)*Math.PI*2 - Math.PI/2;
+        const r  = 85 + hyps.length*3.5;
+        const kx = cx + r*Math.cos(a + T*0.055);
+        const ky = cy + r*Math.sin(a + T*0.055);
+        const cf = hyps[0]?.confidence ?? 0.5;
+        p.noStroke();
+        p.fill(0,180,255,16); p.circle(kx,ky,26);
+        p.fill(0, 170+cf*60, 220, 190); p.circle(kx,ky,10);
+        p.fill(255*cf,30,50); p.circle(kx,ky,4);
+      });
+    }
+
+    // ── unknown orbs / ideas ───────────────────────
+    if (unknownsData?.patterns) {
+      const entries = Object.entries(unknownsData.patterns);
+      entries.forEach(([key,recs],i) => {
+        const obs  = recs.length;
+        const isCand   = obs >= THRESH;
+        const isSel    = key === selectedKey;
+        const isNamed  = namedIdeas[key] !== undefined;
+
+        if (!S[key]) {
+          const a = (i/Math.max(entries.length,1))*Math.PI*2 - Math.PI/2;
+          S[key] = { a, dist:280, snapT:isNamed?1:0 };
+        }
+        const st = S[key];
+        const targetDist = Math.max(280 - (obs/80)*110, 155);
+        st.dist += (targetDist - st.dist)*0.018;
+        if (isNamed) st.snapT = Math.min(st.snapT+0.022, 1);
+
+        const wob = Math.sin(T*0.38+i*1.4)*0.07;
+        const ox  = cx + st.dist*Math.cos(st.a + T*0.018 + wob);
+        const oy  = cy + st.dist*Math.sin(st.a + T*0.018 + wob);
+        const px  = p.lerp(ox, cx+88*Math.cos(st.a), st.snapT);
+        const py  = p.lerp(oy, cy+88*Math.sin(st.a), st.snapT);
+
+        // dashed guide line for candidates
+        if (isCand && !isNamed) {
+          p.stroke(70,70,95, 35+Math.sin(T*1.1+i)*18);
+          p.strokeWeight(1);
+          p.drawingContext.setLineDash([3,9]);
+          p.line(px,py,cx,cy);
+          p.drawingContext.setLineDash([]);
+        }
+
+        const OR = isNamed ? 9 : isCand ? 12 : 7;
+
+        if (isNamed) {
+          // ── named: warm sunrise ──
+          const pulse = Math.max(0, Math.sin(st.snapT*Math.PI*3))*0.6;
+          p.noStroke();
+          p.fill(255,140,0, 28+pulse*70); p.circle(px,py,OR*4.5);
+          p.fill(255,155,40, 170);         p.circle(px,py,OR*2);
+          p.fill(255,225,150,220);         p.circle(px,py,OR*0.65);
+          p.fill(255,185,90,200); p.noStroke(); p.textSize(9); p.textAlign(p.CENTER,p.CENTER);
+          p.text(namedIdeas[key], px, py+OR+11);
+
+        } else if (isCand) {
+          // ── candidate: breathing glow ──
+          const pulse = Math.sin(T*1.75+i)*0.5+0.5;
+          p.noStroke();
+          p.fill(255,140,0, 12+pulse*28); p.circle(px,py,OR*3.8);
+          p.fill(255,140,0, 22+pulse*38); p.circle(px,py,OR*2.2);
+          const g = isSel ? [255,210,110] : [140+pulse*38, (120+pulse*30)*0.85, (110+pulse*25)*0.7];
+          p.fill(...g, 220); p.circle(px,py,OR*2);
+          p.fill(255,255,255,200); p.noStroke(); p.textSize(8); p.textAlign(p.CENTER,p.CENTER);
+          p.text(obs,px,py);
+          p.fill(200,160,100,155); p.textSize(8);
+          p.text(friendlyLabel(key), px, py+OR+11);
+          if (isSel) { p.noFill(); p.stroke(255,210,110); p.strokeWeight(2); p.circle(px,py,OR*2+8); }
+
+        } else {
+          // ── faint drifter ──
+          p.noStroke();
+          p.fill(75,75,88, Math.min(50+obs*9,125)); p.circle(px,py,OR*2);
+          p.fill(115,115,125,75); p.noStroke(); p.textSize(7); p.textAlign(p.CENTER,p.CENTER);
+          p.text(obs,px,py);
+        }
+      });
+    }
+
+    // center label
+    p.noStroke(); p.fill(0,200,255,110); p.textSize(11); p.textAlign(p.CENTER,p.CENTER);
+    p.text('BabyZero', cx, cy-6);
+    p.fill(55,75,95,90); p.textSize(8); p.text('grammar core', cx, cy+8);
+  };
+
+  p.mouseClicked = function() {
+    if (!unknownsData?.patterns) return;
+    const cx=W/2, cy=H/2;
+    for (const [key,recs] of Object.entries(unknownsData.patterns)) {
+      if (recs.length < THRESH || !S[key]) continue;
+      const st = S[key];
+      const wob = Math.sin(T*0.38)*0.07;
+      const ox  = cx + st.dist*Math.cos(st.a + T*0.018 + wob);
+      const oy  = cy + st.dist*Math.sin(st.a + T*0.018 + wob);
+      const px  = p.lerp(ox, cx+88*Math.cos(st.a), st.snapT??0);
+      const py  = p.lerp(oy, cy+88*Math.sin(st.a), st.snapT??0);
+      if (p.dist(p.mouseX, p.mouseY, px, py) < 22) { selectIdea(key, recs.length); return; }
+    }
+  };
+
+  p.windowResized = function() {
+    const wrap = document.getElementById('canvas-wrap');
+    W = wrap.offsetWidth; H = wrap.offsetHeight;
+    p.resizeCanvas(W, H);
+  };
+}
+
+loadAll().then(() => new p5(sketch));
+</script>
+</body>
+</html>

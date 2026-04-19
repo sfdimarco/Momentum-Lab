@@ -23,3 +23,19 @@ __*.ps1
 
 # Session metadata
 metadata.json
+
+# BabyZero — Rust build artifacts + large session files
+babyzero-cortex/target/
+babyzero-cortex/docs/sessions/*.png
+babyzero-cortex/docs/sessions/*_grammar.json
+babyzero-cortex/run*.log
+babyzero-cortex/run_output.txt
+babyzero-cortex/test_output*.txt
+
+# Garden runtime files
+garden/consumed/
+garden/brain.json
+
+# Root brain/state files (runtime, not source)
+brain.json
+cathedral/brain.json
